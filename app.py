@@ -1,11 +1,27 @@
+import plotly.express as px
 import dash
-import dash_bootstrap_components as dbc
+import dash_core_components as dcc
+import dash_html_components as html
+from skimage import data
 
-# Toggle the themes at [dbc.themes.LUX]
-# The full list of available themes is:
-# CERULEAN, COSMO, CYBORG, DARKLY, FLATLY, JOURNAL, LITERA, LUMEN, LUX, MATERIA, MINTY, PULSE, SANDSTONE,
-# SIMPLEX, SKETCHY, SLATE, SOLAR, SPACELAB, SUPERHERO, UNITED, YETI.
-# https://dash-bootstrap-components.opensource.faculty.ai/docs/themes/
+img = data.chelsea()
+fig = px.imshow(img)
+fig.update_layout(dragmode="drawrect")
+config = {
+    "modeBarButtonsToAdd": [
+        "drawline",
+        "drawopenpath",
+        "drawclosedpath",
+        "drawcircle",
+        "drawrect",
+        "eraseshape",
+    ]
+}
 
-app = dash.Dash(__name__, suppress_callback_exceptions=True, external_stylesheets=[dbc.themes.LUX])
-server = app.server
+app = dash.Dash('OpenPV')
+app.layout = html.Div(
+    [html.H3("Drag and draw annotations"), dcc.Graph(figure=fig, config=config),]
+)
+
+if __name__ == "__main__":
+    app.run_server(debug=True)
