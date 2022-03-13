@@ -2,9 +2,10 @@ import plotly.express as px
 import dash
 from dash import dcc
 from dash import html
-from skimage import data
+from skimage import data, io
 
-img = data.chelsea()
+img = io.imread('IMG_3056.jpg')
+
 fig = px.imshow(img)
 fig.update_layout(dragmode="drawrect")
 config = {
@@ -21,7 +22,7 @@ config = {
 app = dash.Dash('OpenPV')
 server = app.server
 app.layout = html.Div(
-    [html.H3("Drag and draw annotations"), dcc.Graph(figure=fig, config=config),]
+    [html.H3("Draw on my cat Grayson"), dcc.Graph(figure=fig, config=config),]
 )
 
 if __name__ == "__main__":
