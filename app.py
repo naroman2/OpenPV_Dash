@@ -19,6 +19,7 @@ config = {
 }
 
 app = dash.Dash('OpenPV')
+server = app.server
 app.layout = html.Div(
     [html.H3("Drag and draw annotations"), dcc.Graph(figure=fig, config=config),]
 )
