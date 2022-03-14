@@ -2,7 +2,6 @@ import os
 from PIL import Image
 import math
 import urllib.request
-import cv2
 import numpy as np
 
 class GoogleMapsLayers:
