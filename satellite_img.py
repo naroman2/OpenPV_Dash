@@ -27,8 +27,8 @@ def get_img_file(lat, lng):
     start_y = point_y
 
     # sets the number of tiles composing the image:
-    tile_width = 5
-    tile_height = 5
+    tile_width = 3
+    tile_height = 3
 
     # getting the pixel width and height for the entire tile composed image
     width = tile_size * tile_width
@@ -36,7 +36,11 @@ def get_img_file(lat, lng):
 
     # creating a new blank image with the desired pixel dimensions.  will be used to store the final image
     map_img = Image.new('RGB', (width, height))
-
+    offset_x = -1
+    offset_y = 0
+    start_x = start_x + offset_x
+    start_y = start_y + offset_y
+    
     for x in range(0, tile_width):
         for y in range(0, tile_height):
 
