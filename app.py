@@ -1,24 +1,37 @@
+# This file is the main plotly app file with web-browser components and callback actions
+
+# Plotly Dash Imports:
 import plotly.express as px
 import dash
 from dash import dcc, html, State
 from dash.dependencies import Input, Output
-from skimage import data, io
-import xmltodict
-import requests
-import urllib.request
-from PIL import Image
-import os
-import math
-from satellite_img import get_img_file
 from dash.exceptions import PreventUpdate
 
+# image processing imports:
+from PIL import Image
+from skimage import data, io
 
+# internet requests imports:
+import requests
+import urllib.request
+
+# other imports:
+import os
+import math
+import xmltodict
+from satellite_img import get_img_file
+
+
+# Nicolas's API Key for Bing Maps:
 BingMapsKey = 'AgPVfqkpC5Z-qfxWFx2tOOgFwsr-hMNKrZC5gX5D7EqVnkHRSbZQfRf0eoYxQsgz'
 
+# Black Image for initial website (Could be replaced with a OpenPV logo?)
+# Need to figure out how to make rectangle a brighter color like yellow?
 img = io.imread('black.jpg')
+fig = px.imshow(img)  # creating a plotly graph figure
+fig.update_layout(dragmode="drawrect")  # enabling rectangle drawing upon drags
 
-fig = px.imshow(img)
-fig.update_layout(dragmode="drawrect", )
+# Configuration dictionary for the graph interactions enabled:
 config = {
     "modeBarButtonsToAdd": [
         #"drawline",
@@ -29,27 +42,38 @@ config = {
         "eraseshape",
     ],
     "fillFrame": True
-
 }
 
+# creating the dash app and server
 app = dash.Dash('OpenPV')
 server = app.server
 
-# Input button allowed entry types for address:
-ALLOWED_TYPES = ('text')
+# Website layout which contains HTML and Dash Components
 app.layout = html.Div(
         [
+        # Header Title:
         html.H3('OpenPV - Photovoltaic System Prediction Tool'), 
+
+        # Input box for address:
         dcc.Input(id = 'address_input', type = 'text', placeholder = 'type your address here', size = '100'),
+
+        # Submit Button to click after entering in user's address
         html.Button('Submit', id='submit-val', n_clicks=0), 
+
+        # Text Area to display longitude and latitude which is found via Bing Maps API
         html.Div(id='gps_coords', children='GPS Coordinates'),
+
+        
         html.Button('Get Rooftop Image', id='satellite-btn', n_clicks=0),
         html.Div(id = 'graph_div', children = [dcc.Graph(id = 'graph')], style={"display": "inline-block"}),
         html.Div(id = 'zoom_graph_div', children = [dcc.Graph(id = 'zoom-graph')], style={"display": "inline-block"})
         ]
 )
 
+
+# Callback for the Submit Button
 @app.callback(
+    # update the output of the 
     Output('gps_coords', 'children'),
     Input('submit-val', 'n_clicks'),
     State('address_input', 'value')
