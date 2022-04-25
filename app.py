@@ -14,7 +14,7 @@ import dash_bootstrap_components as dbc
 #import dash_html_components as html
 #import dash_core_components as dcc
 #from dash import dcc
-import plotly.express as px
+#import plotly.express as px
 import pandas as pd
 
 
@@ -74,6 +74,8 @@ CONTENT_STYLE = {
 
 # creating the dash app and server
 app = dash.Dash('OpenPV', external_stylesheets=[dbc.themes.BOOTSTRAP])
+#suppress ALL callback reference errrors, may need to disable to perform debugging.
+app.config.suppress_callback_exceptions=True
 server = app.server
 
 #SideBar Menu
@@ -106,11 +108,11 @@ app.layout = html.Div([
     content
 ])
 
-
 @app.callback(
     Output("page-content", "children"),
     [Input("url", "pathname")]
 )
+
 def render_page_content(pathname):
     if pathname == "/":
         return [
@@ -161,8 +163,8 @@ def render_page_content(pathname):
     )
 
 
-if __name__=='__main__':
-    app.run_server(debug=True, port=3000)
+# if __name__=='__main__':
+#     app.run_server(debug=True, port=3000)
 
 # Website layout which contains HTML and Dash Components
 #app.layout = html.Div(
@@ -186,7 +188,6 @@ if __name__=='__main__':
 #        html.Div(id = 'zoom_graph_div', children = [dcc.Graph(id = 'zoom-graph')], style={"display": "inline-block"})
 #        ]
 #)
-
 
 # Callback for the Submit Button
 @app.callback(
