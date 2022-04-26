@@ -74,6 +74,7 @@ CONTENT_STYLE = {
 
 # creating the dash app and server
 app = dash.Dash('OpenPV', external_stylesheets=[dbc.themes.BOOTSTRAP])
+
 #suppress ALL callback reference errrors, may need to disable to perform debugging.
 app.config.suppress_callback_exceptions=True
 server = app.server
