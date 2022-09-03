@@ -12,7 +12,7 @@ class GoogleMapsLayers:
   TERRAIN_ONLY = "t"
   HYBRID = "y"
 def get_img_file(lat, lng):
-    zoom = 19
+    zoom = 20
     layer = GoogleMapsLayers.SATELLITE
 
     # tiles
