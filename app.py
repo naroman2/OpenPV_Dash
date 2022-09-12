@@ -83,7 +83,7 @@ CONTENT_STYLE = {
 }
 
 # creating the dash app and server
-app = dash.Dash('OpenPV', external_stylesheets = [dbc.themes.BOOTSTRAP])
+app = dash.Dash('OpenPV', external_stylesheets = [dbc.themes.SOLAR])
 
 #suppress ALL callback reference errrors, may need to disable to perform debugging.
 app.config.suppress_callback_exceptions = True
@@ -152,77 +152,126 @@ def render_page_content(pathname):
     # To-Do: convert pixels to square meters for solar availability calculation.
     elif pathname == "/page-1":
         return [
-                html.H1(
-                    'Set Location for Solar Production Modeling',
-                    style = {'textAlign':'center',' background':'darkcyan', 'color':'white'}
+                dbc.Row(
+                    [
+                    html.H1(
+                        'Set Location, Rooftop Area, and View Data',
+                        style = {'textAlign':'center',' background':'darkcyan', 'color':'white'}
                     ),
+                    
+                    html.Hr()
+                    ]
+                ),
 
-                html.Hr(),
 
-                # Input box for address:
-                dcc.Input(
-                    id = 'address_input', 
-                    type = 'text', 
-                    placeholder = 'type your address here', 
-                    size = '100'
-                    ),
+                dbc.Row(
+                    [
+                        dbc.Col(
+                    # Input box for address:
+                            dbc.Input(
+                                id = 'address_input', 
+                                type = 'text', 
+                                placeholder = 'type your address here', 
+                                size = '100'
+                                ),
+                        ),
 
-                 # Submit Button to click after entering in user's address
-                html.Button(
-                    'Submit', 
-                    id = 'submit-val', 
-                    n_clicks = 0
-                    ), 
+                        dbc.Col(
+                            # Submit Button to click after entering in user's address
+                            dbc.Button(
+                                'Submit', 
+                                id = 'submit-val', 
+                                n_clicks = 0
+                                )
+                        ),
 
-                # Text Area to display longitude and latitude which is found via Bing Maps API
-                html.Div(
-                    id = 'gps_coords', 
-                    children = 'GPS Coordinates'
-                    ),
-       
-                html.Button(
-                    'Get Rooftop Image', 
-                    id = 'satellite-btn', 
-                    n_clicks = 0
-                    ),
-
-                html.Div(
-                    id = 'graph_div', 
-                    children = [dcc.Graph(id = 'graph')], 
-                    style = {"display": "inline-block"}
-                    ),
-
-                html.Div(
-                    id = 'zoom_graph_div', 
-                    children = [dcc.Graph(id = 'zoom-graph')], 
-                    style = {"display": "inline-block"}
-                    ), 
-
-                html.H1(
-                    'Expected Annual Solar Irradiance Availability',
-                    style = {'textAlign':'center','background':'darkcyan', 'color':'white'}
-                    ),
-
-                html.Button(
-                    'Get NREL Data', 
-                    id = 'nrel-collect-btn', 
-                    n_clicks = 0
-                    ),
-
-                html.Div(
-                    id = 'calendar_div', 
-                    children = [
-                        dcc.DatePickerRange(
-                            id = 'my-date-picker-range',
-                            min_date_allowed = date(YEAR, 1, 1),
-                            max_date_allowed = date(YEAR, 12, 31),
-                            initial_visible_month = date(YEAR, 8, 1),
-                            start_date = date(YEAR, 8, 1),
-                            end_date = date(YEAR, 8, 31)
+                        dbc.Col(
+                            dbc.Button(
+                                'Get Rooftop Image', 
+                                id = 'satellite-btn', 
+                                n_clicks = 0
                             )
-                        ], 
+                        )
+                    ]
+                ),
+
+                dbc.Row(
+                    # Text Area to display longitude and latitude which is found via Bing Maps API
+                    html.Div(
+                        id = 'gps_coords', 
+                        children = 'GPS Coordinates'
+                        )
+                ),
+       
+
+            
+                dbc.Card(
+                    children = [
+                        html.H4('Zoom To Find Your Roof'),
+                        html.Div(
+                            id = 'graph_div', 
+                            children = [dcc.Graph(id = 'graph')], 
+                            ),
+                    ],
+
                     style = {"display": "inline-block"}
-                    ),
+                ),
+                
+                dbc.Card(
+                    children = [
+                        html.H4(
+                            children = 'Select Your available Solar Area',
+                            style = {'textArea': 'center'}
+                            ),
+                        html.Div(
+                            id = 'zoom_graph_div', 
+                            children = [dcc.Graph(id = 'zoom-graph')], 
+                            ) 
+                    ],
+
+                    style = {"display": "inline-block"}
+                ),
+
+                dbc.Row(
+                    [
+                    html.Hr(),
+
+                    html.H1(
+                        'Expected Annual Solar Irradiance Availability',
+                        style = {'textAlign':'center',' background':'darkcyan', 'color':'white'}
+                        ),
+                    
+                    html.Hr()
+                    ]
+                ),
+
+                dbc.Row(
+                    [
+                        dbc.Col(
+                            dbc.Button(
+                                'Get NREL Data', 
+                                id = 'nrel-collect-btn', 
+                                n_clicks = 0
+                                )
+                        ),
+                        dbc.Col(
+                            html.Div(
+                                id = 'calendar_div', 
+                                children = [
+                                    dcc.DatePickerRange(
+                                        id = 'my-date-picker-range',
+                                        min_date_allowed = date(YEAR, 1, 1),
+                                        max_date_allowed = date(YEAR, 12, 31),
+                                        initial_visible_month = date(YEAR, 8, 1),
+                                        start_date = date(YEAR, 8, 1),
+                                        end_date = date(YEAR, 8, 31)
+                                        )
+                                    ], 
+                                style = {"display": "inline-block"}
+                                )
+                        )
+                    ]
+                ),
 
                 # DHI, GHI, DNI Plot W/m^2
                 html.Div(
@@ -381,7 +430,7 @@ def generate_data_table(lat_lng, sd, ed):
         )
 
         #df.to_csv('myNRELData.csv')
-        return dash_table.DataTable(df.to_dict('records'), [{"name": i, "id": i} for i in df.columns])
+        return dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True)
     except:
         return []
     
