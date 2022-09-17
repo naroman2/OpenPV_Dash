@@ -11,8 +11,7 @@ import dash_bootstrap_components as dbc
 # data processing imports:
 import pandas as pd
 import numpy as np
-
-# test
+import json
 
 # image processing imports:
 from PIL import Image
@@ -25,11 +24,14 @@ import urllib.request
 # other imports:
 import os
 import math
+from math import cos, pi, pow
 from datetime import date
 import datetime
 import xmltodict
-from satellite_img import get_img_file
+from satellite_img import SatelliteImg, get_new_lat_lng
 from nrel_api import NrelApi
+import traceback
+import sys
 
 # Nicolas's API Key for Bing Maps:
 BingMapsKey = 'AgPVfqkpC5Z-qfxWFx2tOOgFwsr-hMNKrZC5gX5D7EqVnkHRSbZQfRf0eoYxQsgz'
@@ -204,19 +206,20 @@ def render_page_content(pathname):
                 ),
        
 
-            
+                # Neighborhood View
                 dbc.Card(
                     children = [
-                        html.H4('Zoom To Find Your Roof'),
+                        html.H4('Zoom To Find Your House'),
                         html.Div(
-                            id = 'graph_div', 
-                            children = [dcc.Graph(id = 'graph')], 
+                            id = 'neighborhood-div', 
+                            children = [dcc.Graph(id = 'neighborhood-graph')], 
                             ),
                     ],
 
                     style = {"display": "inline-block"}
                 ),
                 
+                # Rooftop View
                 dbc.Card(
                     children = [
                         html.H4(
@@ -224,8 +227,8 @@ def render_page_content(pathname):
                             style = {'textArea': 'center'}
                             ),
                         html.Div(
-                            id = 'zoom_graph_div', 
-                            children = [dcc.Graph(id = 'zoom-graph')], 
+                            id = 'rooftop-div', 
+                            children = [dcc.Graph(id = 'rooftop-graph')], 
                             ) 
                     ],
 
@@ -334,45 +337,82 @@ def get_lat_lng(n_clicks, address):
 
 
 @app.callback(
-    Output('graph_div', 'children'),
-    Input('satellite-btn', 'n_clicks'),
-    State('gps_coords', 'children')
+    Output('neighborhood-div', 'children'),
+    Input('gps_coords', 'children'),
+    Input('neighborhood-graph', 'relayoutData'),
+    prevent_initial_call = True
 )
-def get_rooftop_img(n_clicks, lat_lng):
+def get_neighborhood_view(lat_lng, relayout_data):
     try:
         lat = lat_lng.split(',')[0]
         lng = lat_lng.split(',')[1]
-        global satellite_img 
-        satellite_img = get_img_file(float(lat), float(lng))
-        fig = px.imshow(satellite_img)
-        fig.update_layout(dragmode="drawrect", width=800, height=800, autosize=False,)
-        return dcc.Graph(id = 'graph', figure = fig, config = config)
+        try:
+            if 'shapes' in relayout_data:
+                x0 = relayout_data.get('shapes')[0].get('x0')
+                y0 = relayout_data.get('shapes')[0].get('y0')
+                x1 = relayout_data.get('shapes')[0].get('x1')
+                y1 = relayout_data.get('shapes')[0].get('y1')
+
+                xc = abs((x1 - x0) / 2)
+                yc = abs((y1 - y0) / 2)
+                new_lat, new_lng = get_new_lat_lng(26, float(lat), float(lng), xc, yc)
+                
+                
+                rooftop_img_obj = SatelliteImg(new_lat, new_lng, zoom = 20)
+                rooftop_img = rooftop_img_obj.get_img_file()
+
+                fig = px.imshow(rooftop_img)
+                fig.update_layout(dragmode = "drawrect", width = 1000, height = 1000, autosize=False,)
+                return dcc.Graph(id = 'neighborhood-graph', figure = fig, config = config)
+        except:
+            neighborhood_img_obj = SatelliteImg(float(lat), float(lng))
+            neighborhood_img = neighborhood_img_obj.get_img_file()
+
+            fig = px.imshow(neighborhood_img)
+            fig.update_layout(dragmode = "drawrect", width = 1000, height = 1000, autosize=False,)
+            return dcc.Graph(id = 'neighborhood-graph', figure = fig, config = config)
     except:
         img = io.imread('black.jpg')
         fig = px.imshow(img)
-        fig.update_layout(dragmode="drawrect", width=800, height=800, autosize=False,)
-        return dcc.Graph(id = 'graph', figure = fig, config = config)
+        fig.update_layout(dragmode="drawrect", width=1000, height=1000, autosize=False,)
+        return dcc.Graph(id = 'neighborhood-graph', figure = fig)
 
 @app.callback(
-    Output("zoom_graph_div", "children"),
-    Input("graph", "relayoutData"),
+    Output("rooftop-div", "children"),
+    Input("neighborhood-graph", "relayoutData"),
+    Input('gps_coords', 'children'),
     prevent_initial_call = True,
 )
-def on_new_annotation(relayout_data):
+def get_rooftop_view(relayout_data, lat_lng):
     try:
-        if "shapes" in relayout_data:
-            last_shape = relayout_data["shapes"][-1]
-            # shape coordinates are floats, we need to convert to ints for slicing
-            x0, y0 = int(last_shape["x0"]), int(last_shape["y0"])
-            x1, y1 = int(last_shape["x1"]), int(last_shape["y1"])
-            roi_img = satellite_img[y0:y1, x0:x1]
-            fig = px.imshow(roi_img)
-            return dcc.Graph(id = 'zoom-graph', figure = fig)
+        lat = lat_lng.split(',')[0]
+        lng = lat_lng.split(',')[1]
+        if 'shapes' in relayout_data:
+            x0 = relayout_data.get('shapes')[0].get('x0')
+            y0 = relayout_data.get('shapes')[0].get('y0')
+            x1 = relayout_data.get('shapes')[0].get('x1')
+            y1 = relayout_data.get('shapes')[0].get('y1')
+
+            xc = abs((x1 - x0) / 2)
+            yc = abs((y1 - y0) / 2)
+            new_lat, new_lng = get_new_lat_lng(26, float(lat), float(lng), xc, yc)
+            
+            rooftop_img_obj = SatelliteImg(new_lat, new_lng, zoom = 20)
+
+            try:
+                rooftop_img = rooftop_img_obj.get_img_file()
+            except:
+                print(traceback.format_exc())
+
+            fig = px.imshow(rooftop_img)
+            fig.update_layout(dragmode = "drawrect", width = 1000, height = 1000, autosize=False,)
+            return dcc.Graph(id = 'rooftop-graph', figure = fig, config = config)
+
     except:
         img = io.imread('black.jpg')
         fig = px.imshow(img)
-        fig.update_layout(dragmode="drawrect", width=800, height=800, autosize=False,)
-        return dcc.Graph(id = 'zoom-graph', figure = fig, config = config)
+        fig.update_layout(width=1000, height=1000, autosize=False)
+        return dcc.Graph(id = 'rooftop-graph', figure = fig, config = config)
 
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 #@ PAGE 2. Callback Functions                              @
