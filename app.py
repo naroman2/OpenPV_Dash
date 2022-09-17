@@ -1,6 +1,7 @@
 # This file is the main plotly app file with web-browser components and callback actions
 
 # Plotly Dash Imports:
+from pickle import TRUE
 import plotly.express as px
 import dash
 from dash import dcc, html, State, dash_table
@@ -53,6 +54,10 @@ YEAR = 2010
 img = io.imread('black.jpg')
 fig = px.imshow(img)  # creating a plotly graph figure
 fig.update_layout(dragmode="drawrect")  # enabling rectangle drawing upon drags
+
+#Global Variables
+global shapedrawn
+shapedrawn = False 
 
 # Configuration dictionary for the graph interactions enabled:
 config = {
@@ -343,11 +348,13 @@ def get_lat_lng(n_clicks, address):
     prevent_initial_call = True
 )
 def get_neighborhood_view(lat_lng, relayout_data):
+    global rooftop_img
     try:
         lat = lat_lng.split(',')[0]
         lng = lat_lng.split(',')[1]
         try:
             if 'shapes' in relayout_data:
+                shapedrawn=True
                 x0 = relayout_data.get('shapes')[0].get('x0')
                 y0 = relayout_data.get('shapes')[0].get('y0')
                 x1 = relayout_data.get('shapes')[0].get('x1')
@@ -358,11 +365,11 @@ def get_neighborhood_view(lat_lng, relayout_data):
                 new_lat, new_lng = get_new_lat_lng(26, float(lat), float(lng), xc, yc)
                 
                 
-                rooftop_img_obj = SatelliteImg(new_lat, new_lng, zoom = 20)
-                rooftop_img = rooftop_img_obj.get_img_file()
+                rooftop_img_obj1 = SatelliteImg(new_lat, new_lng, zoom = 20)
+                rooftop_img = rooftop_img_obj1.get_img_file()
 
-                fig = px.imshow(rooftop_img)
-                fig.update_layout(dragmode = "drawrect", width = 1000, height = 1000, autosize=False,)
+                #fig = px.imshow(rooftop_img)
+                #fig.update_layout(dragmode = "drawrect", width = 1000, height = 1000, autosize=False,)
                 return dcc.Graph(id = 'neighborhood-graph', figure = fig, config = config)
         except:
             neighborhood_img_obj = SatelliteImg(float(lat), float(lng))
@@ -384,25 +391,27 @@ def get_neighborhood_view(lat_lng, relayout_data):
     prevent_initial_call = True,
 )
 def get_rooftop_view(relayout_data, lat_lng):
+
     try:
         lat = lat_lng.split(',')[0]
         lng = lat_lng.split(',')[1]
-        if 'shapes' in relayout_data:
-            x0 = relayout_data.get('shapes')[0].get('x0')
-            y0 = relayout_data.get('shapes')[0].get('y0')
-            x1 = relayout_data.get('shapes')[0].get('x1')
-            y1 = relayout_data.get('shapes')[0].get('y1')
+        if shapedrawn:
+            print("If shapes in relayout data reached true")
+            # x0 = relayout_data.get('shapes')[0].get('x0')
+            # y0 = relayout_data.get('shapes')[0].get('y0')
+            # x1 = relayout_data.get('shapes')[0].get('x1')
+            # y1 = relayout_data.get('shapes')[0].get('y1')
 
-            xc = abs((x1 - x0) / 2)
-            yc = abs((y1 - y0) / 2)
-            new_lat, new_lng = get_new_lat_lng(26, float(lat), float(lng), xc, yc)
+            # xc = abs((x1 - x0) / 2)
+            # yc = abs((y1 - y0) / 2)
+            # new_lat, new_lng = get_new_lat_lng(26, float(lat), float(lng), xc, yc)
             
-            rooftop_img_obj = SatelliteImg(new_lat, new_lng, zoom = 20)
+            #rooftop_img_obj2 = SatelliteImg(new_lat, new_lng, zoom = 20)
 
-            try:
-                rooftop_img = rooftop_img_obj.get_img_file()
-            except:
-                print(traceback.format_exc())
+            #try:
+            #    rooftop_img = rooftop_img_obj2.get_img_file()
+            #except:
+            #    print(traceback.format_exc())
 
             fig = px.imshow(rooftop_img)
             fig.update_layout(dragmode = "drawrect", width = 1000, height = 1000, autosize=False,)
