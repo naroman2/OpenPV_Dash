@@ -22,8 +22,9 @@ class SatelliteImg:
     self.longitude = float(lng)
     self.zoom = zoom
     self.layer = layer
+    self.sat_img = None
 
-  def get_img_file(self):
+  def set_img_file(self):
 
       # tiles
       tile_size = 256 # in pixels
@@ -75,7 +76,7 @@ class SatelliteImg:
       img_array = np.array(map_img)
       map_img.close()
     
-      return img_array
+      self.sat_img = img_array
 
 def get_new_lat_lng(zoom, lat, lng, x_px_offset, y_px_offset):
 

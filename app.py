@@ -236,6 +236,16 @@ def render_page_content(pathname):
                 ),
 
                 dbc.Row(
+                    html.Div(
+                        id = 'available-roof-area',
+                        children = [
+                            html.H1('The Available Rooftop Area is 0 m')
+                        ]
+
+                    )
+                ),
+
+                dbc.Row(
                     [
                     html.Hr(),
 
@@ -276,19 +286,23 @@ def render_page_content(pathname):
                     ]
                 ),
 
-                # DHI, GHI, DNI Plot W/m^2
-                html.Div(
-                    id = 'irradiance-timeplot',
-                    children = [],
-                    style = {'display': 'inline-block'}
+                dbc.Row(
+                    # DHI, GHI, DNI Plot W/m^2
+                    html.Div(
+                        id = 'irradiance-timeplot',
+                        children = [],
+                        style = {'display': 'inline-block'}
+                    )
                 ),
 
-                html.Div(
-                    id = 'nrel_table_div', 
-                    children = [], 
-                    style = {"display": "inline-block"}
-                    )
-                ]
+                dbc.Row(
+                    html.Div(
+                        id = 'nrel_table_div', 
+                        children = [], 
+                        style = {"display": "inline-block"}
+                        )
+                )
+        ]
     
     # Page 3. Estimation of Household consumption
     elif pathname == "/page-2":
@@ -335,55 +349,48 @@ def get_lat_lng(n_clicks, address):
     except:
         return '', None
 
-
+####################################################
+# Getting Neighborhood View Satellite Img          #
+####################################################
 @app.callback(
     Output('neighborhood-div', 'children'),
+    Input('gps_coords', 'children'),
+    Input('satellite-btn', 'n_clicks'),
+    prevent_initial_call = True
+)
+def get_neighborhood_view(lat_lng, n_clicks):
+    if n_clicks is not None:
+        try:
+            lat = lat_lng.split(',')[0]
+            lng = lat_lng.split(',')[1]
+            neighborhood_img_obj = SatelliteImg(float(lat), float(lng))
+            neighborhood_img_obj.set_img_file()
+            fig = px.imshow(neighborhood_img_obj.sat_img)
+            fig.update_layout(dragmode = "drawrect", width = 1000, height = 1000, autosize=False,)
+            return dcc.Graph(id = 'neighborhood-graph', figure = fig, config = config)
+        except:
+            img = io.imread('black.jpg')
+            fig = px.imshow(img)
+            fig.update_layout(dragmode="drawrect", width=1000, height=1000, autosize=False,)
+            return dcc.Graph(id = 'neighborhood-graph', figure = fig)
+    else:
+            img = io.imread('black.jpg')
+            fig = px.imshow(img)
+            fig.update_layout(dragmode="drawrect", width=1000, height=1000, autosize=False,)
+            return dcc.Graph(id = 'neighborhood-graph', figure = fig)
+
+
+
+################################################
+# getting and setting rooftop view             #
+################################################
+@app.callback(
+    Output("rooftop-div", "children"),
     Input('gps_coords', 'children'),
     Input('neighborhood-graph', 'relayoutData'),
     prevent_initial_call = True
 )
-def get_neighborhood_view(lat_lng, relayout_data):
-    try:
-        lat = lat_lng.split(',')[0]
-        lng = lat_lng.split(',')[1]
-        try:
-            if 'shapes' in relayout_data:
-                x0 = relayout_data.get('shapes')[0].get('x0')
-                y0 = relayout_data.get('shapes')[0].get('y0')
-                x1 = relayout_data.get('shapes')[0].get('x1')
-                y1 = relayout_data.get('shapes')[0].get('y1')
-
-                xc = abs((x1 - x0) / 2)
-                yc = abs((y1 - y0) / 2)
-                new_lat, new_lng = get_new_lat_lng(26, float(lat), float(lng), xc, yc)
-                
-                
-                rooftop_img_obj = SatelliteImg(new_lat, new_lng, zoom = 20)
-                rooftop_img = rooftop_img_obj.get_img_file()
-
-                fig = px.imshow(rooftop_img)
-                fig.update_layout(dragmode = "drawrect", width = 1000, height = 1000, autosize=False,)
-                return dcc.Graph(id = 'neighborhood-graph', figure = fig, config = config)
-        except:
-            neighborhood_img_obj = SatelliteImg(float(lat), float(lng))
-            neighborhood_img = neighborhood_img_obj.get_img_file()
-
-            fig = px.imshow(neighborhood_img)
-            fig.update_layout(dragmode = "drawrect", width = 1000, height = 1000, autosize=False,)
-            return dcc.Graph(id = 'neighborhood-graph', figure = fig, config = config)
-    except:
-        img = io.imread('black.jpg')
-        fig = px.imshow(img)
-        fig.update_layout(dragmode="drawrect", width=1000, height=1000, autosize=False,)
-        return dcc.Graph(id = 'neighborhood-graph', figure = fig)
-
-@app.callback(
-    Output("rooftop-div", "children"),
-    Input("neighborhood-graph", "relayoutData"),
-    Input('gps_coords', 'children'),
-    prevent_initial_call = True,
-)
-def get_rooftop_view(relayout_data, lat_lng):
+def get_rooftop_view(lat_lng, relayout_data):
     try:
         lat = lat_lng.split(',')[0]
         lng = lat_lng.split(',')[1]
@@ -397,22 +404,57 @@ def get_rooftop_view(relayout_data, lat_lng):
             yc = abs((y1 - y0) / 2)
             new_lat, new_lng = get_new_lat_lng(26, float(lat), float(lng), xc, yc)
             
+            
             rooftop_img_obj = SatelliteImg(new_lat, new_lng, zoom = 20)
-
-            try:
-                rooftop_img = rooftop_img_obj.get_img_file()
-            except:
-                print(traceback.format_exc())
-
-            fig = px.imshow(rooftop_img)
-            fig.update_layout(dragmode = "drawrect", width = 1000, height = 1000, autosize=False,)
+            rooftop_img_obj.set_img_file()
+            fig = px.imshow(rooftop_img_obj.sat_img)
+            fig.update_layout(dragmode = "drawrect", width = 1000, height = 1000, autosize = False)
             return dcc.Graph(id = 'rooftop-graph', figure = fig, config = config)
+        else:
+            raise Exception
 
     except:
         img = io.imread('black.jpg')
         fig = px.imshow(img)
         fig.update_layout(width=1000, height=1000, autosize=False)
         return dcc.Graph(id = 'rooftop-graph', figure = fig, config = config)
+
+
+######################################
+# drawing on roof and computing area #
+######################################
+@app.callback(
+    Output('available-roof-area', 'children'),
+    Input('gps_coords', 'children'),
+    Input('rooftop-graph', 'relayoutData'),
+    prevent_initial_call = True
+)
+def calculate_available_rooftop_area(lat_lng, relayout_data):
+    try:
+        lat = lat_lng.split(',')[0]
+        lng = lat_lng.split(',')[1]
+        if 'shapes' in relayout_data:
+            rects = relayout_data.get('shapes')
+            area = 0
+            for s in rects:
+                print(s)
+                x0 = s.get('x0')
+                y0 = s.get('y0')
+                x1 = s.get('x1')
+                y1 = s.get('y1')
+                width_p = abs(x1 - x0)
+                height_p = abs(y1 - y0)
+                # Convert a pixel displacement at a given zoom level into a meter displacement:
+                meters_per_px = 156543.03392 * cos(float(lat) * pi / 180) / pow(2, 20)
+                width_m = width_p * meters_per_px  #  Needs to be generalized.
+                height_m = height_p * meters_per_px
+                area = area + width_m * height_m
+
+
+        return [html.H1(f'The Available Rooftop Area is {area} square meters')]
+    except:
+        return [html.H1('The Available Rooftop Area is 0 m')]
+
 
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 #@ PAGE 2. Callback Functions                              @
@@ -429,6 +471,7 @@ def get_rooftop_view(relayout_data, lat_lng):
     prevent_initial_call = True
 )
 def generate_data_table(lat_lng, sd, ed):
+    global solar_df
     try:
         lat = lat_lng.split(',')[0]
         lng = lat_lng.split()[1]
@@ -469,6 +512,8 @@ def generate_data_table(lat_lng, sd, ed):
             axis = 1
         )
 
+        solar_df = df
+
         #df.to_csv('myNRELData.csv')
         return dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True)
     except:
@@ -481,18 +526,26 @@ def generate_data_table(lat_lng, sd, ed):
     
 def irradiance_plotter(df):
     try:
-        df = df.get('props').get('data')
-        df = pd.DataFrame.from_dict(df)
-        #print(df.head())
-        fig_ghi = px.line(df, x = "Date", y = "GHI")
-        fig_dhi = px.line(df, x = "Date", y = "DHI")
-        fig_dni = px.line(df, x = "Date", y = "DNI")
-        fig_temp = px.line(df, x = "Date", y = "Temperature")
+        fig_ghi = px.line(solar_df, x = "Date", y = "GHI")
+        fig_dhi = px.line(solar_df, x = "Date", y = "DHI")
+        fig_dni = px.line(solar_df, x = "Date", y = "DNI")
+        fig_temp = px.line(solar_df, x = "Date", y = "Temperature")
         return [
+            html.H1('Global Horizontal Irradiance [W/m^2] vs. Date'),
             dcc.Graph(figure = fig_ghi), 
-            dcc.Graph(figure = fig_dhi), 
-            dcc.Graph(figure = fig_dni), 
-            dcc.Graph(figure = fig_temp)
+            html.Hr(),
+
+            html.H1('Direct Horizontal Irradiance [W/m^2] vs. Date'),
+            dcc.Graph(figure = fig_dhi),
+            html.Hr(), 
+
+            html.H1('Direct Normal Irradiance [W/m^2] vs. Date'),
+            dcc.Graph(figure = fig_dni),
+            html.Hr(),
+
+            html.H1('Temperature [Celcius] vs Date'),
+            dcc.Graph(figure = fig_temp),
+            html.Hr()
             ]
     except:
         return []
