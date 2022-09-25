@@ -11,8 +11,7 @@ import dash_bootstrap_components as dbc
 # data processing imports:
 import pandas as pd
 import numpy as np
-
-# test
+import json
 
 # image processing imports:
 from PIL import Image
@@ -25,11 +24,14 @@ import urllib.request
 # other imports:
 import os
 import math
+from math import cos, pi, pow
 from datetime import date
 import datetime
 import xmltodict
-from satellite_img import get_img_file
+from satellite_img import SatelliteImg, get_new_lat_lng
 from nrel_api import NrelApi
+import traceback
+import sys
 
 # Nicolas's API Key for Bing Maps:
 BingMapsKey = 'AgPVfqkpC5Z-qfxWFx2tOOgFwsr-hMNKrZC5gX5D7EqVnkHRSbZQfRf0eoYxQsgz'
@@ -83,7 +85,7 @@ CONTENT_STYLE = {
 }
 
 # creating the dash app and server
-app = dash.Dash('OpenPV', external_stylesheets = [dbc.themes.BOOTSTRAP])
+app = dash.Dash('OpenPV', external_stylesheets = [dbc.themes.SOLAR])
 
 #suppress ALL callback reference errrors, may need to disable to perform debugging.
 app.config.suppress_callback_exceptions = True
@@ -102,6 +104,7 @@ sidebar = html.Div(
                 dbc.NavLink("Home", href = "/", active = "exact"),
                 dbc.NavLink("Household Location", href = "/page-1", active = "exact"),
                 dbc.NavLink("Set Household Load", href = "/page-2", active = "exact"),
+                dbc.NavLink("Set Rooftop Pitch/Angle", href = "/page-3", active = "exact"),
             ],
             vertical = True,
             pills = True,
@@ -136,8 +139,96 @@ def render_page_content(pathname):
                     style = {'textAlign':'center', 'background':'darkcyan', 'color':'white'}
                 ),
                 html.Hr(),
-                html.P("Open PV is an open source toolkit to provide consumers with the power to model real world solar production!"),
-                html.H5('To reload previous work, enter username and password below:',
+                html.H4("Open PV is an open source toolkit to provide consumers with the power to model real world solar production!"),
+                html.Hr(),
+
+                dbc.Row(
+                    [
+                        html.Div(
+                            [
+                                html.H1("Meet The Team:"),
+
+                                dbc.Row(
+                                    [
+                                        dbc.Col(
+                                            dbc.Card(
+                                                [
+                                                    dbc.CardImg(src="/static/images/david.png", top=True),  
+                                                    dbc.CardBody(
+                                                        [
+                                                            html.H4('David Montiel', className = 'card-title'),
+                                                            html.P('ASU Online Student from Chicago, IL')
+                                                        ]
+                                                    )  
+                                                ]
+                                            )
+                                        ),
+
+                                        dbc.Col(
+                                            dbc.Card(
+                                                [
+                                                    dbc.CardImg(src="static/images/nicolas.png", top=True),    
+                                                    dbc.CardBody(
+                                                        [
+                                                            html.H4('Nicolas Romano', className = 'card-title'),
+                                                            html.P('ASU Online Student from Cleveland, OH')
+                                                        ]
+                                                    )
+                                                ]
+                                            )
+                                        ),
+
+                                        dbc.Col(
+                                            dbc.Card(
+                                                [
+                                                    dbc.CardImg(src="static/images/jaron.png", top=True),  
+                                                    dbc.CardBody(
+                                                        [
+                                                            html.H4('Jaron Guisa', className = 'card-title'),
+                                                            html.P('ASU Online Student from Ridgecrest, CA')
+                                                        ]
+                                                    )  
+                                                ]       
+                                            )
+                                        ),
+
+                                        dbc.Col(
+                                            dbc.Card(
+                                                [
+                                                    dbc.CardImg(src="static/images/Jeremiah.png", top=True), 
+                                                    dbc.CardBody(
+                                                        [
+                                                            html.H4('Jeremiah Simmons', className = 'card-title'),
+                                                            html.P('ASU Online Student from Sierra Vista, AZ')
+                                                        ]
+                                                    )   
+                                                ]    
+                                            )
+                                        ),
+
+                                        dbc.Col(
+                                            dbc.Card(
+                                                [
+                                                    dbc.CardImg(src="static\images\Goryll.png", top=True),    
+                                                    dbc.CardBody(
+                                                        [
+                                                            html.H4('Dr. Michael Goryll (Project Mentor)', className = 'card-title'),
+                                                            html.P('ASU associate professor in the School of Electrical, Computer and Energy Engineering')
+                                                        ]
+                                                    )
+                                                ]    
+                                            )
+                                        ),
+                                    ] 
+                                )
+                            ]
+                        )
+                    ]
+                ),
+
+                html.Hr(),
+
+                html.H5('To reload previous estimations, enter username and password below:',
                     style = {'textAlign':'left'}
                     ),
                 # User-name login (to be implemented)
@@ -152,99 +243,265 @@ def render_page_content(pathname):
     # To-Do: convert pixels to square meters for solar availability calculation.
     elif pathname == "/page-1":
         return [
-                html.H1(
-                    'Set Location for Solar Production Modeling',
-                    style = {'textAlign':'center',' background':'darkcyan', 'color':'white'}
+                dbc.Row(
+                    [
+                    html.H1(
+                        'Set Location, Rooftop Area, and View Data',
+                        style = {'textAlign':'center',' background':'darkcyan', 'color':'white'}
                     ),
-
-                html.Hr(),
-
-                # Input box for address:
-                dcc.Input(
-                    id = 'address_input', 
-                    type = 'text', 
-                    placeholder = 'type your address here', 
-                    size = '100'
-                    ),
-
-                 # Submit Button to click after entering in user's address
-                html.Button(
-                    'Submit', 
-                    id = 'submit-val', 
-                    n_clicks = 0
-                    ), 
-
-                # Text Area to display longitude and latitude which is found via Bing Maps API
-                html.Div(
-                    id = 'gps_coords', 
-                    children = 'GPS Coordinates'
-                    ),
-       
-                html.Button(
-                    'Get Rooftop Image', 
-                    id = 'satellite-btn', 
-                    n_clicks = 0
-                    ),
-
-                html.Div(
-                    id = 'graph_div', 
-                    children = [dcc.Graph(id = 'graph')], 
-                    style = {"display": "inline-block"}
-                    ),
-
-                html.Div(
-                    id = 'zoom_graph_div', 
-                    children = [dcc.Graph(id = 'zoom-graph')], 
-                    style = {"display": "inline-block"}
-                    ), 
-
-                html.H1(
-                    'Expected Annual Solar Irradiance Availability',
-                    style = {'textAlign':'center','background':'darkcyan', 'color':'white'}
-                    ),
-
-                html.Button(
-                    'Get NREL Data', 
-                    id = 'nrel-collect-btn', 
-                    n_clicks = 0
-                    ),
-
-                html.Div(
-                    id = 'calendar_div', 
-                    children = [
-                        dcc.DatePickerRange(
-                            id = 'my-date-picker-range',
-                            min_date_allowed = date(YEAR, 1, 1),
-                            max_date_allowed = date(YEAR, 12, 31),
-                            initial_visible_month = date(YEAR, 8, 1),
-                            start_date = date(YEAR, 8, 1),
-                            end_date = date(YEAR, 8, 31)
-                            )
-                        ], 
-                    style = {"display": "inline-block"}
-                    ),
-
-                # DHI, GHI, DNI Plot W/m^2
-                html.Div(
-                    id = 'irradiance-timeplot',
-                    children = [],
-                    style = {'display': 'inline-block'}
+                    
+                    html.Hr()
+                    ]
                 ),
 
-                html.Div(
-                    id = 'nrel_table_div', 
-                    children = [], 
+
+                dbc.Row(
+                    [
+                        dbc.Col(
+                    # Input box for address:
+                            dbc.Input(
+                                id = 'address_input', 
+                                type = 'text', 
+                                placeholder = 'type your address here', 
+                                size = '100'
+                                ),
+                        ),
+
+                        dbc.Col(
+                            # Submit Button to click after entering in user's address
+                            dbc.Button(
+                                'Submit', 
+                                id = 'submit-val', 
+                                n_clicks = 0
+                                )
+                        ),
+
+                        dbc.Col(
+                            dbc.Button(
+                                'Get Rooftop Image', 
+                                id = 'satellite-btn', 
+                                n_clicks = 0
+                            )
+                        )
+                    ]
+                ),
+
+                dbc.Row(
+                    # Text Area to display longitude and latitude which is found via Bing Maps API
+                    html.Div(
+                        id = 'gps_coords', 
+                        children = 'GPS Coordinates'
+                        )
+                ),
+       
+
+                # Neighborhood View
+                dbc.Card(
+                    children = [
+                        html.H4('Zoom To Find Your House'),
+                        html.Div(
+                            id = 'neighborhood-div', 
+                            children = [dcc.Graph(id = 'neighborhood-graph')], 
+                            ),
+                    ],
+
                     style = {"display": "inline-block"}
+                ),
+                
+                # Rooftop View
+                dbc.Card(
+                    children = [
+                        html.H4(
+                            children = 'Select Your available Solar Area',
+                            style = {'textArea': 'center'}
+                            ),
+                        html.Div(
+                            id = 'rooftop-div', 
+                            children = [dcc.Graph(id = 'rooftop-graph')], 
+                            ) 
+                    ],
+
+                    style = {"display": "inline-block"}
+                ),
+
+                dbc.Row(
+                    html.Div(
+                        id = 'available-roof-area',
+                        children = [
+                            html.H1('The Available Rooftop Area is 0 m')
+                        ]
+
                     )
-                ]
+                ),
+
+                dbc.Row(
+                    [
+                    html.Hr(),
+
+                    html.H1(
+                        'Expected Annual Solar Irradiance Availability',
+                        style = {'textAlign':'center',' background':'darkcyan', 'color':'white'}
+                        ),
+                    
+                    html.Hr()
+                    ]
+                ),
+
+                dbc.Row(
+                    [
+                        dbc.Col(
+                            dbc.Button(
+                                'Get NREL Data', 
+                                id = 'nrel-collect-btn', 
+                                n_clicks = 0
+                                )
+                        ),
+                        dbc.Col(
+                            html.Div(
+                                id = 'calendar_div', 
+                                children = [
+                                    dcc.DatePickerRange(
+                                        id = 'my-date-picker-range',
+                                        min_date_allowed = date(YEAR, 1, 1),
+                                        max_date_allowed = date(YEAR, 12, 31),
+                                        initial_visible_month = date(YEAR, 8, 1),
+                                        start_date = date(YEAR, 8, 1),
+                                        end_date = date(YEAR, 8, 31)
+                                        )
+                                    ], 
+                                style = {"display": "inline-block"}
+                                )
+                        )
+                    ]
+                ),
+
+                dbc.Row(
+                    # DHI, GHI, DNI Plot W/m^2
+                    html.Div(
+                        id = 'irradiance-timeplot',
+                        children = [],
+                        style = {'display': 'inline-block'}
+                    )
+                ),
+
+                dbc.Row(
+                    html.Div(
+                        id = 'nrel_table_div', 
+                        children = [], 
+                        style = {"display": "inline-block"}
+                        )
+                )
+        ]
     
-    # Page 3. Estimation of Household consumption
+    # Page 2. Estimation of Household consumption
     elif pathname == "/page-2":
         return [
                 html.H1('Define Houshold Power Consumption',
                         style={'textAlign':'center','background':'darkcyan', 'color':'white'}),
 
                 ]
+    # Page 3. Estimation of Rooftop Angle/Pitch
+    elif pathname == "/page-3":
+        return [
+    dbc.Row(
+                    [
+                    html.H1(
+                        'Define Rooftop Angle',
+                        style = {'textAlign':'center',' background':'darkcyan', 'color':'white'}
+                    ),
+                    
+                    html.Hr()
+                    ]
+                ),
+                dbc.Row(
+                    [
+                        html.Div(
+                            [
+                                dbc.Label("Choose the rooftop angle closest to your roof, or enter a custom angle."),
+                                dbc.Row(
+                                    [
+                                        dbc.Col(
+                                dbc.Card(
+                                            [
+                                                dbc.CardImg(src="/static/images/oof15deg.jpg", top=True),    
+                                            ],
+                                        ),),
+                                        dbc.Col(
+                                dbc.Card(
+                                            [
+                                                dbc.CardImg(src="static\images\oof30deg.jpg", top=True),    
+                                            ],
+                                        ),),
+                                        dbc.Col(
+                                dbc.Card(
+                                            [
+                                                dbc.CardImg(src="static\images\oof45deg.jpg", top=True),    
+                                            ],
+                                        ),),
+                                        dbc.Col(
+                                dbc.Card(
+                                            [
+                                                dbc.CardImg(src="static\images\oof60deg.jpg", top=True),    
+                                            ],    
+                                ),),
+                                dbc.Col(
+                                dbc.Card(
+                                            [
+                                                dbc.CardImg(src="static\images\oofcustdeg.jpg", top=True),    
+                                            ],    
+                                ),),
+                                    ] 
+                                        ),                                
+                                dbc.RadioItems(
+                                    options=[
+                                        {"label": "15\N{DEGREE SIGN}____________________", "value": 1, "disabled": False},
+                                        {"label": "30\N{DEGREE SIGN}____________________", "value": 2, "disabled": False},
+                                        {"label": "45\N{DEGREE SIGN}____________________", "value": 3, "disabled": False},
+                                        {"label": "60\N{DEGREE SIGN}____________________", "value": 4, "disabled": False},
+                                        {"label": "Custom_____________", "value": 5, "disabled": False},                                    
+                                        ],
+                                    #value=1,
+                                    id="roofslope_radio",
+                                    inline=True,
+                                ),
+                            ]
+                        )
+                    ]
+                ),
+                        dbc.Row(
+                        html.Div(
+                        [
+                            dbc.Input(
+                                id = 'roofslope_custominput', 
+                                type = 'text', 
+                                placeholder = 'Enter custom roof angle (\N{DEGREE SIGN})',
+                                size = '150'
+                              )
+                        ], style= {'display': 'block'}
+                        ),
+                        ),                   
+                        dbc.Row(
+                    [
+                        html.H1(
+                        'Additional Information',
+                        style = {'textAlign':'center',' background':'darkcyan', 'color':'white'}
+                    ),
+                        html.Hr(),
+                        html.Div(
+                            [
+                                dbc.Label("Unexpected Costs: Any rooftop steeper than 35\N{DEGREE SIGN} will approximately double the labor cost. Shingles that are considered old and shingles made of wood or clay would need to be replaced with composite shingles which will increase the material and labor costs."),   
+                            dbc.Col(
+                                dbc.Card(
+                                            [
+                                                dbc.CardImg(src="static\images\shinglesamp.jpg", top=True),    
+                                            ],
+                                           style={"width": "35rem"}, 
+                                        ),),
+                            ]
+                        )
+                    ]
+                    )
+        ]
             
     # If the user tries to reach a different page, return a 404 message
     return dbc.Jumbotron(
@@ -283,47 +540,111 @@ def get_lat_lng(n_clicks, address):
     except:
         return '', None
 
-
+####################################################
+# Getting Neighborhood View Satellite Img          #
+####################################################
 @app.callback(
-    Output('graph_div', 'children'),
+    Output('neighborhood-div', 'children'),
+    Input('gps_coords', 'children'),
     Input('satellite-btn', 'n_clicks'),
-    State('gps_coords', 'children')
+    prevent_initial_call = True
 )
-def get_rooftop_img(n_clicks, lat_lng):
+def get_neighborhood_view(lat_lng, n_clicks):
+    if n_clicks is not None:
+        try:
+            lat = lat_lng.split(',')[0]
+            lng = lat_lng.split(',')[1]
+            neighborhood_img_obj = SatelliteImg(float(lat), float(lng))
+            neighborhood_img_obj.set_img_file()
+            fig = px.imshow(neighborhood_img_obj.sat_img)
+            fig.update_layout(dragmode = "drawrect", width = 1000, height = 1000, autosize=False,)
+            return dcc.Graph(id = 'neighborhood-graph', figure = fig, config = config)
+        except:
+            img = io.imread('black.jpg')
+            fig = px.imshow(img)
+            fig.update_layout(dragmode="drawrect", width=1000, height=1000, autosize=False,)
+            return dcc.Graph(id = 'neighborhood-graph', figure = fig)
+    else:
+            img = io.imread('black.jpg')
+            fig = px.imshow(img)
+            fig.update_layout(dragmode="drawrect", width=1000, height=1000, autosize=False,)
+            return dcc.Graph(id = 'neighborhood-graph', figure = fig)
+
+
+
+################################################
+# getting and setting rooftop view             #
+################################################
+@app.callback(
+    Output("rooftop-div", "children"),
+    Input('gps_coords', 'children'),
+    Input('neighborhood-graph', 'relayoutData'),
+    prevent_initial_call = True
+)
+def get_rooftop_view(lat_lng, relayout_data):
     try:
         lat = lat_lng.split(',')[0]
         lng = lat_lng.split(',')[1]
-        global satellite_img 
-        satellite_img = get_img_file(float(lat), float(lng))
-        fig = px.imshow(satellite_img)
-        fig.update_layout(dragmode="drawrect", width=800, height=800, autosize=False,)
-        return dcc.Graph(id = 'graph', figure = fig, config = config)
-    except:
-        img = io.imread('black.jpg')
-        fig = px.imshow(img)
-        fig.update_layout(dragmode="drawrect", width=800, height=800, autosize=False,)
-        return dcc.Graph(id = 'graph', figure = fig, config = config)
+        if 'shapes' in relayout_data:
+            x0 = relayout_data.get('shapes')[0].get('x0')
+            y0 = relayout_data.get('shapes')[0].get('y0')
+            x1 = relayout_data.get('shapes')[0].get('x1')
+            y1 = relayout_data.get('shapes')[0].get('y1')
 
-@app.callback(
-    Output("zoom_graph_div", "children"),
-    Input("graph", "relayoutData"),
-    prevent_initial_call = True,
-)
-def on_new_annotation(relayout_data):
-    try:
-        if "shapes" in relayout_data:
-            last_shape = relayout_data["shapes"][-1]
-            # shape coordinates are floats, we need to convert to ints for slicing
-            x0, y0 = int(last_shape["x0"]), int(last_shape["y0"])
-            x1, y1 = int(last_shape["x1"]), int(last_shape["y1"])
-            roi_img = satellite_img[y0:y1, x0:x1]
-            fig = px.imshow(roi_img)
-            return dcc.Graph(id = 'zoom-graph', figure = fig)
+            xc = abs((x1 - x0) / 2)
+            yc = abs((y1 - y0) / 2)
+            new_lat, new_lng = get_new_lat_lng(26, float(lat), float(lng), xc, yc)
+            
+            
+            rooftop_img_obj = SatelliteImg(new_lat, new_lng, zoom = 20)
+            rooftop_img_obj.set_img_file()
+            fig = px.imshow(rooftop_img_obj.sat_img)
+            fig.update_layout(dragmode = "drawrect", width = 1000, height = 1000, autosize = False)
+            return dcc.Graph(id = 'rooftop-graph', figure = fig, config = config)
+        else:
+            raise Exception
+
     except:
         img = io.imread('black.jpg')
         fig = px.imshow(img)
-        fig.update_layout(dragmode="drawrect", width=800, height=800, autosize=False,)
-        return dcc.Graph(id = 'zoom-graph', figure = fig, config = config)
+        fig.update_layout(width=1000, height=1000, autosize=False)
+        return dcc.Graph(id = 'rooftop-graph', figure = fig, config = config)
+
+
+######################################
+# drawing on roof and computing area #
+######################################
+@app.callback(
+    Output('available-roof-area', 'children'),
+    Input('gps_coords', 'children'),
+    Input('rooftop-graph', 'relayoutData'),
+    prevent_initial_call = True
+)
+def calculate_available_rooftop_area(lat_lng, relayout_data):
+    try:
+        lat = lat_lng.split(',')[0]
+        lng = lat_lng.split(',')[1]
+        if 'shapes' in relayout_data:
+            rects = relayout_data.get('shapes')
+            area = 0
+            for s in rects:
+                x0 = s.get('x0')
+                y0 = s.get('y0')
+                x1 = s.get('x1')
+                y1 = s.get('y1')
+                width_p = abs(x1 - x0)
+                height_p = abs(y1 - y0)
+                # Convert a pixel displacement at a given zoom level into a meter displacement:
+                meters_per_px = 156543.03392 * cos(float(lat) * pi / 180) / pow(2, 20)
+                width_m = width_p * meters_per_px  #  Needs to be generalized.
+                height_m = height_p * meters_per_px
+                area = area + width_m * height_m
+
+
+        return [html.H1(f'The Available Rooftop Area is {area} square meters')]
+    except:
+        return [html.H1('The Available Rooftop Area is 0 m')]
+
 
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 #@ PAGE 2. Callback Functions                              @
@@ -340,6 +661,7 @@ def on_new_annotation(relayout_data):
     prevent_initial_call = True
 )
 def generate_data_table(lat_lng, sd, ed):
+    global solar_df
     try:
         lat = lat_lng.split(',')[0]
         lng = lat_lng.split()[1]
@@ -380,8 +702,10 @@ def generate_data_table(lat_lng, sd, ed):
             axis = 1
         )
 
+        solar_df = df
+
         #df.to_csv('myNRELData.csv')
-        return dash_table.DataTable(df.to_dict('records'), [{"name": i, "id": i} for i in df.columns])
+        return dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True)
     except:
         return []
     
@@ -392,21 +716,45 @@ def generate_data_table(lat_lng, sd, ed):
     
 def irradiance_plotter(df):
     try:
-        df = df.get('props').get('data')
-        df = pd.DataFrame.from_dict(df)
-        #print(df.head())
-        fig_ghi = px.line(df, x = "Date", y = "GHI")
-        fig_dhi = px.line(df, x = "Date", y = "DHI")
-        fig_dni = px.line(df, x = "Date", y = "DNI")
-        fig_temp = px.line(df, x = "Date", y = "Temperature")
+        fig_ghi = px.line(solar_df, x = "Date", y = "GHI")
+        fig_dhi = px.line(solar_df, x = "Date", y = "DHI")
+        fig_dni = px.line(solar_df, x = "Date", y = "DNI")
+        fig_temp = px.line(solar_df, x = "Date", y = "Temperature")
         return [
+            html.H1('Global Horizontal Irradiance [W/m^2] vs. Date'),
             dcc.Graph(figure = fig_ghi), 
-            dcc.Graph(figure = fig_dhi), 
-            dcc.Graph(figure = fig_dni), 
-            dcc.Graph(figure = fig_temp)
+            html.Hr(),
+
+            html.H1('Direct Horizontal Irradiance [W/m^2] vs. Date'),
+            dcc.Graph(figure = fig_dhi),
+            html.Hr(), 
+
+            html.H1('Direct Normal Irradiance [W/m^2] vs. Date'),
+            dcc.Graph(figure = fig_dni),
+            html.Hr(),
+
+            html.H1('Temperature [Celcius] vs Date'),
+            dcc.Graph(figure = fig_temp),
+            html.Hr()
             ]
     except:
         return []
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+#@ PAGE 3 Rooftop. Callback Functions                      @
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# Callback for the Custom Rooftop Slope Input to be hidden unless "Custom" Radio button is selected
+@app.callback(
+    # updates the output of the 
+    Output(component_id='roofslope_custominput', component_property='style'),
+    [Input(component_id='roofslope_radio', component_property='value')]
+)
+#If Radio Button 5 (Custom) is selected: dislay custom value input. Else: hide custom value input
+def show_hide_customroofslope(roofslope_radio):
+    if roofslope_radio == 5:
+        return {'display': 'block'}
+    else :
+        return {'display': 'none'}        
 
 if __name__ == "__main__":
     app.run_server(debug=True)

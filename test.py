@@ -1,14 +1,8 @@
-import datetime
+url = f'https://mt1.google.com/vt/lyrs={self.layer}&x={start_x + x}&y={start_y + y}&z={self.zoom}'
 
-# datetime in string format for may 25 1999
-input = '2021/05/25'
-  
-# format
-format = '%Y/%m/%d'
-  
-# convert from string format to datetime format
-datetime = datetime.datetime.strptime(input, format)
-  
-# get the date from the datetime using date() 
-# function
-print(datetime.date())
+# tile image file name:
+current_tile = f'{str(x)}-{str(y)}'
+
+# the tile image data is store into current_tile after url request
+print('one')
+urllib.request.urlretrieve(url, current_tile)
