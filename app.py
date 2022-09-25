@@ -104,6 +104,7 @@ sidebar = html.Div(
                 dbc.NavLink("Home", href = "/", active = "exact"),
                 dbc.NavLink("Household Location", href = "/page-1", active = "exact"),
                 dbc.NavLink("Set Household Load", href = "/page-2", active = "exact"),
+                dbc.NavLink("Set Rooftop Pitch/Angle", href = "/page-3", active = "exact"),
             ],
             vertical = True,
             pills = True,
@@ -138,8 +139,96 @@ def render_page_content(pathname):
                     style = {'textAlign':'center', 'background':'darkcyan', 'color':'white'}
                 ),
                 html.Hr(),
-                html.P("Open PV is an open source toolkit to provide consumers with the power to model real world solar production!"),
-                html.H5('To reload previous work, enter username and password below:',
+                html.H4("Open PV is an open source toolkit to provide consumers with the power to model real world solar production!"),
+                html.Hr(),
+
+                dbc.Row(
+                    [
+                        html.Div(
+                            [
+                                html.H1("Meet The Team:"),
+
+                                dbc.Row(
+                                    [
+                                        dbc.Col(
+                                            dbc.Card(
+                                                [
+                                                    dbc.CardImg(src="/static/images/david.png", top=True),  
+                                                    dbc.CardBody(
+                                                        [
+                                                            html.H4('David Montiel', className = 'card-title'),
+                                                            html.P('ASU Online Student from Chicago, IL')
+                                                        ]
+                                                    )  
+                                                ]
+                                            )
+                                        ),
+
+                                        dbc.Col(
+                                            dbc.Card(
+                                                [
+                                                    dbc.CardImg(src="static/images/nicolas.png", top=True),    
+                                                    dbc.CardBody(
+                                                        [
+                                                            html.H4('Nicolas Romano', className = 'card-title'),
+                                                            html.P('ASU Online Student from Cleveland, OH')
+                                                        ]
+                                                    )
+                                                ]
+                                            )
+                                        ),
+
+                                        dbc.Col(
+                                            dbc.Card(
+                                                [
+                                                    dbc.CardImg(src="static/images/jaron.png", top=True),  
+                                                    dbc.CardBody(
+                                                        [
+                                                            html.H4('Jaron Guisa', className = 'card-title'),
+                                                            html.P('ASU Online Student from Ridgecrest, CA')
+                                                        ]
+                                                    )  
+                                                ]       
+                                            )
+                                        ),
+
+                                        dbc.Col(
+                                            dbc.Card(
+                                                [
+                                                    dbc.CardImg(src="static/images/Jeremiah.png", top=True), 
+                                                    dbc.CardBody(
+                                                        [
+                                                            html.H4('Jeremiah Simmons', className = 'card-title'),
+                                                            html.P('ASU Online Student from Sierra Vista, AZ')
+                                                        ]
+                                                    )   
+                                                ]    
+                                            )
+                                        ),
+
+                                        dbc.Col(
+                                            dbc.Card(
+                                                [
+                                                    dbc.CardImg(src="static\images\Goryll.png", top=True),    
+                                                    dbc.CardBody(
+                                                        [
+                                                            html.H4('Dr. Michael Goryll (Project Mentor)', className = 'card-title'),
+                                                            html.P('ASU associate professor in the School of Electrical, Computer and Energy Engineering')
+                                                        ]
+                                                    )
+                                                ]    
+                                            )
+                                        ),
+                                    ] 
+                                )
+                            ]
+                        )
+                    ]
+                ),
+
+                html.Hr(),
+
+                html.H5('To reload previous estimations, enter username and password below:',
                     style = {'textAlign':'left'}
                     ),
                 # User-name login (to be implemented)
@@ -304,13 +393,115 @@ def render_page_content(pathname):
                 )
         ]
     
-    # Page 3. Estimation of Household consumption
+    # Page 2. Estimation of Household consumption
     elif pathname == "/page-2":
         return [
                 html.H1('Define Houshold Power Consumption',
                         style={'textAlign':'center','background':'darkcyan', 'color':'white'}),
 
                 ]
+    # Page 3. Estimation of Rooftop Angle/Pitch
+    elif pathname == "/page-3":
+        return [
+    dbc.Row(
+                    [
+                    html.H1(
+                        'Define Rooftop Angle',
+                        style = {'textAlign':'center',' background':'darkcyan', 'color':'white'}
+                    ),
+                    
+                    html.Hr()
+                    ]
+                ),
+                dbc.Row(
+                    [
+                        html.Div(
+                            [
+                                dbc.Label("Choose the rooftop angle closest to your roof, or enter a custom angle."),
+                                dbc.Row(
+                                    [
+                                        dbc.Col(
+                                dbc.Card(
+                                            [
+                                                dbc.CardImg(src="/static/images/oof15deg.jpg", top=True),    
+                                            ],
+                                        ),),
+                                        dbc.Col(
+                                dbc.Card(
+                                            [
+                                                dbc.CardImg(src="static\images\oof30deg.jpg", top=True),    
+                                            ],
+                                        ),),
+                                        dbc.Col(
+                                dbc.Card(
+                                            [
+                                                dbc.CardImg(src="static\images\oof45deg.jpg", top=True),    
+                                            ],
+                                        ),),
+                                        dbc.Col(
+                                dbc.Card(
+                                            [
+                                                dbc.CardImg(src="static\images\oof60deg.jpg", top=True),    
+                                            ],    
+                                ),),
+                                dbc.Col(
+                                dbc.Card(
+                                            [
+                                                dbc.CardImg(src="static\images\oofcustdeg.jpg", top=True),    
+                                            ],    
+                                ),),
+                                    ] 
+                                        ),                                
+                                dbc.RadioItems(
+                                    options=[
+                                        {"label": "15\N{DEGREE SIGN}____________________", "value": 1, "disabled": False},
+                                        {"label": "30\N{DEGREE SIGN}____________________", "value": 2, "disabled": False},
+                                        {"label": "45\N{DEGREE SIGN}____________________", "value": 3, "disabled": False},
+                                        {"label": "60\N{DEGREE SIGN}____________________", "value": 4, "disabled": False},
+                                        {"label": "Custom_____________", "value": 5, "disabled": False},                                    
+                                        ],
+                                    #value=1,
+                                    id="roofslope_radio",
+                                    inline=True,
+                                ),
+                            ]
+                        )
+                    ]
+                ),
+                        dbc.Row(
+                        html.Div(
+                        [
+                            dbc.Input(
+                                id = 'roofslope_custominput', 
+                                type = 'text', 
+                                placeholder = 'Enter custom roof angle (\N{DEGREE SIGN})',
+                                size = '150'
+                              )
+                        ], style= {'display': 'block'}
+                        ),
+                        ),                   
+                        dbc.Row(
+                    [
+                        html.H1(
+                        'Additional Information',
+                        style = {'textAlign':'center',' background':'darkcyan', 'color':'white'}
+                    ),
+                        html.Hr(),
+                        html.Div(
+                            [
+                                dbc.Label("Unexpected Costs: Any rooftop steeper than 35\N{DEGREE SIGN} will approximately double the labor cost. Shingles that are considered old and shingles made of wood or clay would need to be replaced with composite shingles which will increase the material and labor costs."),   
+                            dbc.Col(
+                                dbc.Card(
+                                            [
+                                                dbc.CardImg(src="static\images\shinglesamp.jpg", top=True),    
+                                            ],
+                                           style={"width": "35rem"}, 
+                                        ),),
+                            ]
+                        )
+                    ]
+                    )
+        ]
             
     # If the user tries to reach a different page, return a 404 message
     return dbc.Jumbotron(
@@ -437,7 +628,6 @@ def calculate_available_rooftop_area(lat_lng, relayout_data):
             rects = relayout_data.get('shapes')
             area = 0
             for s in rects:
-                print(s)
                 x0 = s.get('x0')
                 y0 = s.get('y0')
                 x1 = s.get('x1')
@@ -549,6 +739,22 @@ def irradiance_plotter(df):
             ]
     except:
         return []
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+#@ PAGE 3 Rooftop. Callback Functions                      @
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# Callback for the Custom Rooftop Slope Input to be hidden unless "Custom" Radio button is selected
+@app.callback(
+    # updates the output of the 
+    Output(component_id='roofslope_custominput', component_property='style'),
+    [Input(component_id='roofslope_radio', component_property='value')]
+)
+#If Radio Button 5 (Custom) is selected: dislay custom value input. Else: hide custom value input
+def show_hide_customroofslope(roofslope_radio):
+    if roofslope_radio == 5:
+        return {'display': 'block'}
+    else :
+        return {'display': 'none'}        
 
 if __name__ == "__main__":
     app.run_server(debug=True)
