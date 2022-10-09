@@ -33,8 +33,10 @@ class NrelApi():
 
         # info = pd.read_csv(url, nrows=1)
         df = requests.get(url).content
-        df = pd.read_csv(io.StringIO(df.decode('utf-8')), skiprows = 2)
-        return df
+        df1 = pd.read_csv(io.StringIO(df.decode('utf-8')), skiprows = 0)
+        GMT_offset = df1['Time Zone'][0]
+        data = pd.read_csv(io.StringIO(df.decode('utf-8')), skiprows = 2)
+        return data, GMT_offset
     
 
         

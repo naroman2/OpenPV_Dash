@@ -5,33 +5,26 @@ import plotly.express as px
 import dash
 from dash import dcc, html, State, dash_table
 from dash.dependencies import Input, Output
-from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 
 # data processing imports:
-import pandas as pd
 import numpy as np
-import json
+import pandas as pd
 
 # image processing imports:
-from PIL import Image
-from skimage import data, io
+from skimage import io
 
 # internet requests imports:
 import requests
-import urllib.request
 
 # other imports:
-import os
-import math
 from math import cos, pi, pow
 from datetime import date
 import datetime
 import xmltodict
 from satellite_img import SatelliteImg, get_new_lat_lng
 from nrel_api import NrelApi
-import traceback
-import sys
+from yield_calculation import YieldEstimation
 
 # Nicolas's API Key for Bing Maps:
 BingMapsKey = 'AgPVfqkpC5Z-qfxWFx2tOOgFwsr-hMNKrZC5gX5D7EqVnkHRSbZQfRf0eoYxQsgz'
@@ -57,13 +50,14 @@ fig.update_layout(dragmode="drawrect")  # enabling rectangle drawing upon drags
 # Configuration dictionary for the graph interactions enabled:
 config = {
     "modeBarButtonsToAdd": [
-        #"drawline",
-        #"drawopenpath",
-        #"drawclosedpath",
-        #"drawcircle",
+        "drawline",
+        "drawopenpath",
+        "drawclosedpath",
+        "drawcircle",
         "drawrect",
         "eraseshape",
     ],
+
     "fillFrame": True
 }
 
@@ -102,44 +96,72 @@ sidebar = html.Div(
         dbc.Nav(
             [
                 dbc.NavLink("Home", href = "/", active = "exact"),
-                dbc.NavLink("Household Location", href = "/page-1", active = "exact"),
-                dbc.NavLink("Set Household Load", href = "/page-2", active = "exact"),
-                dbc.NavLink("Set Rooftop Pitch/Angle", href = "/page-3", active = "exact"),
+                dbc.NavLink("1. Set Rooftop Pitch/Angle", href = "/page-1", active = "exact"),
+                dbc.NavLink("2. Set Household Load", href = "/page-2", active = "exact"),
+                dbc.NavLink("3. Household Location", href = "/page-3", active = "exact"),
+                dbc.NavLink("4. Annual Solar Yield Estimation", href = "/page-4", active = "exact")
             ],
+
             vertical = True,
             pills = True,
-        ),
+        )
     ],
-    style = SIDEBAR_STYLE,
+
+    style = SIDEBAR_STYLE
 )
 
-# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-# When you click on a sub-page on the sidebar, it uses clicking to navigate   @
-# to the href url listed /page-n...  This callback generates the html layout  @
-# of the page.                                                                @
-# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-content = html.Div(id = "page-content", children = [], style = CONTENT_STYLE)
-app.layout = html.Div([
-    dcc.Location(id = "url"),    # add to the address url
-    sidebar,
-    content
-])
+###############################################################################
+# When you click on a sub-page on the sidebar, it uses clicking to navigate   #
+# to the href url listed /page-n...  This callback generates the html layout  #
+# of the page.                                                                #
+###############################################################################
+content = html.Div(
+    id = "page-content", 
+    children = [], 
+    style = CONTENT_STYLE
+)
+
+app.layout = html.Div(
+    [
+        dcc.Location(id = "url"),    # add to the address url
+        dcc.Store(id = 'mod-azimuth', storage_type = 'session'),
+        dcc.Store(id = 'mod-elevation', storage_type = 'session'),
+        dcc.Store(id = 'mod-area', storage_type = 'session'),
+        dcc.Store(id = 'rated-power', storage_type = 'session'),
+        dcc.Store(id = 'maximum-power-point-current', storage_type = 'session'),
+        dcc.Store(id = 'system-voltage', storage_type = 'session'),
+        dcc.Store(id = 'module-efficiency', storage_type = 'session'),
+        dcc.Store(id = 'nrel-data', storage_type = 'session'),
+        dcc.Store(id = 'lat-lng', storage_type = 'session'),
+        sidebar,
+        content
+    ]
+)
+
 @app.callback(
     Output("page-content", "children"),
-    [Input("url", "pathname")]
+    Input("url", "pathname")
 )
 
-# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-# function to load the content for each page                    @
-# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+#################################################################
+# function to load the content for each page                    #
+#################################################################
 def render_page_content(pathname):
-    if pathname == "/":    # homepage
+
+    ############################################################
+    # Homepage                                                 #
+    ############################################################
+    if pathname == "/":
         return [
-                html.H1('Welcome to Open PV',
+                html.H1(
+                    children = 'Welcome to Open PV',
                     style = {'textAlign':'center', 'background':'darkcyan', 'color':'white'}
                 ),
+
                 html.Hr(),
+
                 html.H4("Open PV is an open source toolkit to provide consumers with the power to model real world solar production!"),
+
                 html.Hr(),
 
                 dbc.Row(
@@ -153,7 +175,7 @@ def render_page_content(pathname):
                                         dbc.Col(
                                             dbc.Card(
                                                 [
-                                                    dbc.CardImg(src="/static/images/david.png", top=True),  
+                                                    dbc.CardImg(src = "/static/images/david.png", top=True),  
                                                     dbc.CardBody(
                                                         [
                                                             html.H4('David Montiel', className = 'card-title'),
@@ -167,7 +189,7 @@ def render_page_content(pathname):
                                         dbc.Col(
                                             dbc.Card(
                                                 [
-                                                    dbc.CardImg(src="static/images/nicolas.png", top=True),    
+                                                    dbc.CardImg(src = "static/images/nicolas.png", top = True),    
                                                     dbc.CardBody(
                                                         [
                                                             html.H4('Nicolas Romano', className = 'card-title'),
@@ -181,7 +203,7 @@ def render_page_content(pathname):
                                         dbc.Col(
                                             dbc.Card(
                                                 [
-                                                    dbc.CardImg(src="static/images/jaron.png", top=True),  
+                                                    dbc.CardImg(src = "static/images/jaron.png", top = True),  
                                                     dbc.CardBody(
                                                         [
                                                             html.H4('Jaron Guisa', className = 'card-title'),
@@ -195,7 +217,7 @@ def render_page_content(pathname):
                                         dbc.Col(
                                             dbc.Card(
                                                 [
-                                                    dbc.CardImg(src="static/images/Jeremiah.png", top=True), 
+                                                    dbc.CardImg(src = "static/images/Jeremiah.png", top = True), 
                                                     dbc.CardBody(
                                                         [
                                                             html.H4('Jeremiah Simmons', className = 'card-title'),
@@ -209,7 +231,7 @@ def render_page_content(pathname):
                                         dbc.Col(
                                             dbc.Card(
                                                 [
-                                                    dbc.CardImg(src="static\images\Goryll.png", top=True),    
+                                                    dbc.CardImg(src = "static\images\Goryll.png", top = True),    
                                                     dbc.CardBody(
                                                         [
                                                             html.H4('Dr. Michael Goryll (Project Mentor)', className = 'card-title'),
@@ -218,7 +240,7 @@ def render_page_content(pathname):
                                                     )
                                                 ]    
                                             )
-                                        ),
+                                        )
                                     ] 
                                 )
                             ]
@@ -230,23 +252,26 @@ def render_page_content(pathname):
 
                 html.H5('To reload previous estimations, enter username and password below:',
                     style = {'textAlign':'left'}
-                    ),
+                ),
+
                 # User-name login (to be implemented)
                 dcc.Input(id = 'username_input', type = 'text', placeholder = 'Username', size = '30'),
                 html.Br(),
                 dcc.Input(id = 'password_input', type = 'text', placeholder = 'Password', size = '30'),
                 html.Br(),
                 html.Button('Submit', id = 'submit-val', n_clicks=0),
-                ]
+        ]
+    ##################### End Home Page ########################
 
-    # Page 1 - Choose Address, find lng-lat, get rooftop-satellite imagery, select outline of roof
-    # To-Do: convert pixels to square meters for solar availability calculation.
+    ####################################################
+    # Page 1. Manual Input Params                      #
+    ####################################################
     elif pathname == "/page-1":
         return [
                 dbc.Row(
                     [
                     html.H1(
-                        'Set Location, Rooftop Area, and View Data',
+                        'Define Rooftop Angle',
                         style = {'textAlign':'center',' background':'darkcyan', 'color':'white'}
                     ),
                     
@@ -254,17 +279,202 @@ def render_page_content(pathname):
                     ]
                 ),
 
+                dbc.Row(
+                    [
+                        html.Div(
+                            [
+                                dbc.Label("Choose the rooftop angle closest to your roof, or enter a custom angle."),
+
+                                dbc.Row(
+                                    [
+                                        dbc.Col(
+                                            dbc.Card(
+                                                [
+                                                    dbc.CardImg(src="/static/images/oof15deg.jpg", top=True),    
+                                                ]
+                                            )
+                                        ),
+
+                                        dbc.Col(
+                                            dbc.Card(
+                                                [
+                                                    dbc.CardImg(src="static\images\oof30deg.jpg", top=True),    
+                                                ]
+                                            )
+                                        ),
+
+                                        dbc.Col(
+                                            dbc.Card(
+                                                [
+                                                    dbc.CardImg(src="static\images\oof45deg.jpg", top=True),    
+                                                ]
+                                            )
+                                        ),
+
+                                        dbc.Col(
+                                            dbc.Card(
+                                                [
+                                                    dbc.CardImg(src="static\images\oof60deg.jpg", top=True),    
+                                                ]   
+                                            )
+                                        ),
+
+                                        dbc.Col(
+                                            dbc.Card(
+                                                [
+                                                    dbc.CardImg(src="static\images\oofcustdeg.jpg", top=True),    
+                                                ]   
+                                            )
+                                        )
+                                    ] 
+                                ),
+
+                                dbc.RadioItems(
+                                    options=[
+                                        {"label": "15\N{DEGREE SIGN}____________________", "value": 1, "disabled": False},
+                                        {"label": "30\N{DEGREE SIGN}____________________", "value": 2, "disabled": False},
+                                        {"label": "45\N{DEGREE SIGN}____________________", "value": 3, "disabled": False},
+                                        {"label": "60\N{DEGREE SIGN}____________________", "value": 4, "disabled": False},
+                                        {"label": "Custom_____________", "value": 5, "disabled": False},                                    
+                                    ],
+
+                                    id = "roofslope_radio",
+                                    inline = True,
+                                    persistence = True
+                                )
+                            ]
+                        )
+                    ]
+                ),
+
+                dbc.Row(
+                    [
+                        html.Div(
+                            [
+                                dbc.Input(
+                                    id = 'roofslope_custominput', 
+                                    type = 'text', 
+                                    placeholder = 'Enter custom roof angle (\N{DEGREE SIGN})',
+                                    size = '150'
+                                )
+                            ],
+                            
+                            style= {'display': 'block'}
+                        ),
+                        
+                        html.Hr()
+                    ]
+                ),  
+
+                dbc.Row(
+                    [
+                        html.Hr(),
+                        html.H1(
+                            children = 'Additional Information',
+                            style = {'textAlign':'center',' background':'darkcyan', 'color':'white'}
+                        ),
+
+                        dbc.Label("Unexpected Costs: Any rooftop steeper than 35\N{DEGREE SIGN} will approximately double the labor cost. Shingles that are considered old and \
+                            shingles made of wood or clay would need to be replaced with composite shingles which will increase the material and labor costs."),   
+                        dbc.Col(
+                            dbc.Card(
+                                [
+                                    dbc.CardImg(src="static\images\shinglesamp.jpg", top=True),    
+                                ],
+                                
+                                style={"width": "35rem"}, 
+                            )
+                        ),
+                        
+                        html.Hr()
+                    ]
+                ),
+
+                dbc.Row(
+                    [
+                        html.Hr(),
+                        html.H1('Select the Solar Module Efficiency:', style = {'textAlign':'center',' background':'darkcyan', 'color':'white'}),
+                        dbc.RadioItems(
+                            options=[
+                                {"label": "15%", "value": 1, "disabled": False},
+                                {"label": "20%", "value": 2, "disabled": False},
+                                {"label": "25%", "value": 3, "disabled": False},
+                                {"label": "30%", "value": 4, "disabled": False},
+                                {"label": "Custom", "value": 5, "disabled": False},                                    
+                            ],
+
+                            id = "module-efficiency",
+                            inline = True,
+                            persistence = True,
+                            style = {'textAlign':'center',' background':'darkcyan', 'color':'white'}
+                        ),
+                        html.Hr()
+                    ]
+                ),
+
+                dbc.Row(
+                    [
+                        html.Hr(),
+                        html.H1('Select the Solar Module Efficiency:', style = {'textAlign':'center',' background':'darkcyan', 'color':'white'}),
+                        dbc.RadioItems(
+                            options=[
+                                {"label": "15%", "value": 1, "disabled": False},
+                                {"label": "20%", "value": 2, "disabled": False},
+                                {"label": "25%", "value": 3, "disabled": False},
+                                {"label": "30%", "value": 4, "disabled": False},
+                                {"label": "Custom", "value": 5, "disabled": False},                                    
+                            ],
+
+                            id = "module-efficiency",
+                            inline = True,
+                            persistence = True,
+                            style = {'textAlign':'center',' background':'darkcyan', 'color':'white'}
+                        ),
+                        html.Hr()
+                    ]
+                )
+        ]
+    #################### End of Page 1 ################################
+
+
+    ###################################################################
+    # Page 2. Estimation of Household consumption                     #
+    ###################################################################
+    elif pathname == "/page-2":
+        return [
+                html.H1('Define Houshold Power Consumption',
+                        style={'textAlign':'center','background':'darkcyan', 'color':'white'}),
+
+                ]
+    #################### End of Page 2 ################################
+
+    ##################################################################################################
+    # Page 3 - Choose Address, find lng-lat, get rooftop-satellite imagery, select outline of roof   #
+    ##################################################################################################
+    elif pathname == "/page-3":
+        return [
+                
+                dbc.Row(
+                    [
+                        html.H1(
+                            children = 'Set Location, Rooftop Area, and View Data',
+                            style = {'textAlign':'center',' background':'darkcyan', 'color':'white'}
+                        ),
+                    
+                        html.Hr()
+                    ]
+                ),
 
                 dbc.Row(
                     [
                         dbc.Col(
-                    # Input box for address:
+                            # Input box for address:
                             dbc.Input(
                                 id = 'address_input', 
                                 type = 'text', 
                                 placeholder = 'type your address here', 
                                 size = '100'
-                                ),
+                            ),
                         ),
 
                         dbc.Col(
@@ -273,7 +483,7 @@ def render_page_content(pathname):
                                 'Submit', 
                                 id = 'submit-val', 
                                 n_clicks = 0
-                                )
+                            )
                         ),
 
                         dbc.Col(
@@ -290,11 +500,11 @@ def render_page_content(pathname):
                     # Text Area to display longitude and latitude which is found via Bing Maps API
                     html.Div(
                         id = 'gps_coords', 
-                        children = 'GPS Coordinates'
-                        )
+                        children = 'GPS Coordinates',
+                    ),
+    
                 ),
        
-
                 # Neighborhood View
                 dbc.Card(
                     children = [
@@ -302,7 +512,7 @@ def render_page_content(pathname):
                         html.Div(
                             id = 'neighborhood-div', 
                             children = [dcc.Graph(id = 'neighborhood-graph')], 
-                            ),
+                        )
                     ],
 
                     style = {"display": "inline-block"}
@@ -314,11 +524,12 @@ def render_page_content(pathname):
                         html.H4(
                             children = 'Select Your available Solar Area',
                             style = {'textArea': 'center'}
-                            ),
+                        ),
+
                         html.Div(
                             id = 'rooftop-div', 
                             children = [dcc.Graph(id = 'rooftop-graph')], 
-                            ) 
+                        ) 
                     ],
 
                     style = {"display": "inline-block"}
@@ -330,196 +541,104 @@ def render_page_content(pathname):
                         children = [
                             html.H1('The Available Rooftop Area is 0 m')
                         ]
-
                     )
                 ),
 
                 dbc.Row(
-                    [
-                    html.Hr(),
+                [
+                    dbc.Col(
+                        dbc.Button(
+                            'Get NREL Data', 
+                            id = 'nrel-collect-btn', 
+                            n_clicks = 0
+                        )
+                    ),
 
-                    html.H1(
-                        'Expected Annual Solar Irradiance Availability',
-                        style = {'textAlign':'center',' background':'darkcyan', 'color':'white'}
-                        ),
-                    
-                    html.Hr()
-                    ]
-                ),
-
-                dbc.Row(
-                    [
-                        dbc.Col(
-                            dbc.Button(
-                                'Get NREL Data', 
-                                id = 'nrel-collect-btn', 
-                                n_clicks = 0
+                    dbc.Col(
+                        html.Div(
+                            id = 'calendar_div', 
+                            children = [
+                                dcc.DatePickerRange(
+                                    id = 'my-date-picker-range',
+                                    min_date_allowed = date(YEAR, 1, 1),
+                                    max_date_allowed = date(YEAR, 12, 31),
+                                    initial_visible_month = date(YEAR, 8, 1),
+                                    start_date = date(YEAR, 8, 1),
+                                    end_date = date(YEAR, 8, 31)
                                 )
-                        ),
-                        dbc.Col(
+                            ],
+
+                            style = {"display": "inline-block"}
+                        )
+                    )
+                ]
+            ),
+
+            dbc.Row(
+                # DHI, GHI, DNI Plot W/m^2
+                html.Div(
+                    id = 'irradiance-timeplot',
+                    children = [],
+                    style = {'display': 'inline-block'}
+                )
+            ),
+
+            dbc.Row(
+                html.Div(
+                    id = 'nrel_table_div', 
+                    children = [], 
+                    style = {"display": "inline-block"}
+                )
+            )
+
+        ]
+    ############################### End of Page 3 ###########################
+
+    elif pathname =="/page-4":
+        return [
+
+            dbc.Row(
+                    html.Div(
+                        id = 'yield_calculation_div',
+                        children = [
+                            html.Hr(),
+
+                            html.H1(
+                                children = 'Expected Annual Solar Irradiance Availability',
+                                style = {'textAlign':'center',' background':'darkcyan', 'color':'white'}
+                            ),
+
+                            dbc.Button('Generate Annual Solar Energy Yield', color = 'primary', className = 'yield-button'),
+                        
+                            html.Hr(),
+
                             html.Div(
-                                id = 'calendar_div', 
-                                children = [
-                                    dcc.DatePickerRange(
-                                        id = 'my-date-picker-range',
-                                        min_date_allowed = date(YEAR, 1, 1),
-                                        max_date_allowed = date(YEAR, 12, 31),
-                                        initial_visible_month = date(YEAR, 8, 1),
-                                        start_date = date(YEAR, 8, 1),
-                                        end_date = date(YEAR, 8, 31)
-                                        )
-                                    ], 
-                                style = {"display": "inline-block"}
-                                )
-                        )
-                    ]
-                ),
+                                id = 'ann-power-yield',
+                                children = 'Your estimated Annual Power Yield is'
+                            )
 
-                dbc.Row(
-                    # DHI, GHI, DNI Plot W/m^2
-                    html.Div(
-                        id = 'irradiance-timeplot',
-                        children = [],
-                        style = {'display': 'inline-block'}
-                    )
-                ),
+                        ],
 
-                dbc.Row(
-                    html.Div(
-                        id = 'nrel_table_div', 
-                        children = [], 
                         style = {"display": "inline-block"}
-                        )
+                    )
                 )
         ]
-    
-    # Page 2. Estimation of Household consumption
-    elif pathname == "/page-2":
-        return [
-                html.H1('Define Houshold Power Consumption',
-                        style={'textAlign':'center','background':'darkcyan', 'color':'white'}),
-
-                ]
-    # Page 3. Estimation of Rooftop Angle/Pitch
-    elif pathname == "/page-3":
-        return [
-    dbc.Row(
-                    [
-                    html.H1(
-                        'Define Rooftop Angle',
-                        style = {'textAlign':'center',' background':'darkcyan', 'color':'white'}
-                    ),
-                    
-                    html.Hr()
-                    ]
-                ),
-                dbc.Row(
-                    [
-                        html.Div(
-                            [
-                                dbc.Label("Choose the rooftop angle closest to your roof, or enter a custom angle."),
-                                dbc.Row(
-                                    [
-                                        dbc.Col(
-                                dbc.Card(
-                                            [
-                                                dbc.CardImg(src="/static/images/oof15deg.jpg", top=True),    
-                                            ],
-                                        ),),
-                                        dbc.Col(
-                                dbc.Card(
-                                            [
-                                                dbc.CardImg(src="static\images\oof30deg.jpg", top=True),    
-                                            ],
-                                        ),),
-                                        dbc.Col(
-                                dbc.Card(
-                                            [
-                                                dbc.CardImg(src="static\images\oof45deg.jpg", top=True),    
-                                            ],
-                                        ),),
-                                        dbc.Col(
-                                dbc.Card(
-                                            [
-                                                dbc.CardImg(src="static\images\oof60deg.jpg", top=True),    
-                                            ],    
-                                ),),
-                                dbc.Col(
-                                dbc.Card(
-                                            [
-                                                dbc.CardImg(src="static\images\oofcustdeg.jpg", top=True),    
-                                            ],    
-                                ),),
-                                    ] 
-                                        ),                                
-                                dbc.RadioItems(
-                                    options=[
-                                        {"label": "15\N{DEGREE SIGN}____________________", "value": 1, "disabled": False},
-                                        {"label": "30\N{DEGREE SIGN}____________________", "value": 2, "disabled": False},
-                                        {"label": "45\N{DEGREE SIGN}____________________", "value": 3, "disabled": False},
-                                        {"label": "60\N{DEGREE SIGN}____________________", "value": 4, "disabled": False},
-                                        {"label": "Custom_____________", "value": 5, "disabled": False},                                    
-                                        ],
-                                    #value=1,
-                                    id="roofslope_radio",
-                                    inline=True,
-                                ),
-                            ]
-                        )
-                    ]
-                ),
-                        dbc.Row(
-                        html.Div(
-                        [
-                            dbc.Input(
-                                id = 'roofslope_custominput', 
-                                type = 'text', 
-                                placeholder = 'Enter custom roof angle (\N{DEGREE SIGN})',
-                                size = '150'
-                              )
-                        ], style= {'display': 'block'}
-                        ),
-                        ),                   
-                        dbc.Row(
-                    [
-                        html.H1(
-                        'Additional Information',
-                        style = {'textAlign':'center',' background':'darkcyan', 'color':'white'}
-                    ),
-                        html.Hr(),
-                        html.Div(
-                            [
-                                dbc.Label("Unexpected Costs: Any rooftop steeper than 35\N{DEGREE SIGN} will approximately double the labor cost. Shingles that are considered old and shingles made of wood or clay would need to be replaced with composite shingles which will increase the material and labor costs."),   
-                            dbc.Col(
-                                dbc.Card(
-                                            [
-                                                dbc.CardImg(src="static\images\shinglesamp.jpg", top=True),    
-                                            ],
-                                           style={"width": "35rem"}, 
-                                        ),),
-                            ]
-                        )
-                    ]
-                    )
-        ]
-            
     # If the user tries to reach a different page, return a 404 message
-    return dbc.Jumbotron(
-        [
-            html.H1("404: Not found", className="text-danger"),
-            html.Hr(),
-            html.P(f"The pathname {pathname} was not recognised..."),
-        ]
-    )
+    else:
+        return dbc.Jumbotron(
+            [
+                html.H1("404: Not found", className="text-danger"),
+                html.Hr(),
+                html.P(f"The pathname {pathname} was not recognised..."),
+            ]
+        )
 
-#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-#@ PAGE 1. Callback Functions                              @
-#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
 
 # Callback for the Submit Button
 @app.callback(
     # updates the output of the 
-    Output('gps_coords', 'children'),
+    Output('lat-lng', 'data'),
     Input('submit-val', 'n_clicks'),
     State('address_input', 'value')
 )
@@ -534,7 +653,7 @@ def get_lat_lng(n_clicks, address):
         lat = coords.get('Latitude')
         lng = coords.get('Longitude')
         coords = f'{lat}, {lng}'
-        
+
         return coords
 
     except:
@@ -545,7 +664,7 @@ def get_lat_lng(n_clicks, address):
 ####################################################
 @app.callback(
     Output('neighborhood-div', 'children'),
-    Input('gps_coords', 'children'),
+    Input('lat-lng', 'data'),
     Input('satellite-btn', 'n_clicks'),
     prevent_initial_call = True
 )
@@ -558,7 +677,8 @@ def get_neighborhood_view(lat_lng, n_clicks):
             neighborhood_img_obj.set_img_file()
             fig = px.imshow(neighborhood_img_obj.sat_img)
             fig.update_layout(dragmode = "drawrect", width = 1000, height = 1000, autosize=False,)
-            return dcc.Graph(id = 'neighborhood-graph', figure = fig, config = config)
+            neighborhood_graph = dcc.Graph(id = 'neighborhood-graph', figure = fig, config = config)
+            return neighborhood_graph
         except:
             img = io.imread('black.jpg')
             fig = px.imshow(img)
@@ -577,7 +697,7 @@ def get_neighborhood_view(lat_lng, n_clicks):
 ################################################
 @app.callback(
     Output("rooftop-div", "children"),
-    Input('gps_coords', 'children'),
+    Input('lat-lng', 'data'),
     Input('neighborhood-graph', 'relayoutData'),
     prevent_initial_call = True
 )
@@ -615,8 +735,8 @@ def get_rooftop_view(lat_lng, relayout_data):
 # drawing on roof and computing area #
 ######################################
 @app.callback(
-    Output('available-roof-area', 'children'),
-    Input('gps_coords', 'children'),
+    Output('mod-area', 'data'),
+    Input('lat-lng', 'data'),
     Input('rooftop-graph', 'relayoutData'),
     prevent_initial_call = True
 )
@@ -640,24 +760,23 @@ def calculate_available_rooftop_area(lat_lng, relayout_data):
                 height_m = height_p * meters_per_px
                 area = area + width_m * height_m
 
-
-        return [html.H1(f'The Available Rooftop Area is {area} square meters')]
+        return area
     except:
-        return [html.H1('The Available Rooftop Area is 0 m')]
-
-
-#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-#@ PAGE 2. Callback Functions                              @
-#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+        return 0
 
 @app.callback(
-    Output('nrel_table_div', 'children'),
-    [
-        Input('gps_coords', 'children'),
-        Input('my-date-picker-range', 'start_date'),
-        Input('my-date-picker-range', 'end_date')
-        ],
-    #State('gps_coords', 'children'),
+    Output('available-roof-area', 'children'),
+    Input('mod-area', 'data')
+)
+def display_selected_area(mod_area):
+    return [html.H1(f'The Available Rooftop Area is {mod_area} square meters')]
+
+
+@app.callback(
+    Output('nrel-data', 'data'),
+    Input('gps_coords', 'children'),
+    Input('my-date-picker-range', 'start_date'),
+    Input('my-date-picker-range', 'end_date'),
     prevent_initial_call = True
 )
 def generate_data_table(lat_lng, sd, ed):
@@ -680,7 +799,7 @@ def generate_data_table(lat_lng, sd, ed):
             email = EMAIL, 
             ml = MAILING_LIST
         )
-        df = nr.get_nrel_df()
+        df, gmt_offset = nr.get_nrel_df()
 
         # Code to retrieve calendar start and end times
         format = "%Y-%m-%d"
@@ -702,18 +821,28 @@ def generate_data_table(lat_lng, sd, ed):
             axis = 1
         )
 
-        solar_df = df
+        solar_json = df.to_json(orient = 'records')
+        return solar_json, gmt_offset
 
-        #df.to_csv('myNRELData.csv')
-        return dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True)
-    except:
+    except Exception as e:
+        print(e)
         return []
-    
+
+@app.callback(
+    Output('nrel_table_div', 'children'),
+    Input('nrel-data', 'data')
+)
+def display_nrel_df(nrel_data):
+    solar_json = nrel_data[0]
+    print(nrel_data[1])
+    df = pd.DataFrame(eval(solar_json))
+    data_table = dash_table.DataTable(df.to_dict('records'), [{"name": i, "id": i} for i in df.columns], persistence = True)
+    return data_table
+
 @app.callback(
     Output('irradiance-timeplot', 'children'),
     [Input('nrel_table_div', 'children')]
-    )      
-    
+    )        
 def irradiance_plotter(df):
     try:
         fig_ghi = px.line(solar_df, x = "Date", y = "GHI")
@@ -739,9 +868,6 @@ def irradiance_plotter(df):
             ]
     except:
         return []
-#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-#@ PAGE 3 Rooftop. Callback Functions                      @
-#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
 # Callback for the Custom Rooftop Slope Input to be hidden unless "Custom" Radio button is selected
 @app.callback(
@@ -754,7 +880,49 @@ def show_hide_customroofslope(roofslope_radio):
     if roofslope_radio == 5:
         return {'display': 'block'}
     else :
-        return {'display': 'none'}        
+        return {'display': 'none'}   
 
+@app.callback(
+    Output('gps_coords', 'children'),
+    Input('lat-lng', 'data')
+)
+def print_coords(coords):
+    return coords
+
+     
+@app.callback(
+    Output('ann-power-yield', 'children'),
+    Input('lat-lng', 'data'),
+    Input('mod-area', 'data'),
+    Input('nrel-data', 'data')
+)
+def print_coords(coords, area, nrel_data):
+
+    try:
+        nrel_df = pd.DataFrame(eval(nrel_data[0]))
+        gmt_offset = nrel_data[1]
+        lat = coords.split(',')[0]
+        lng = coords.split(',')[1]
+
+        ay = YieldEstimation(
+            module_azimuth = 180,
+            module_elevation = 30,
+            module_area = area,
+            rated_power = 285,
+            maximum_power_point_current = 7.8,
+            system_voltage = 48,
+            module_efficiency = 0.145,
+            nrel_data = nrel_df,
+            gmt_offset = gmt_offset,
+            latitude = lat,
+            longitude = lng
+        )
+
+        annual_power_yield = ay.get_total_yearly_power()
+
+        return f'Your estimated Annual Power Yield is {round(annual_power_yield/ 1000, 2)} kWh'
+    except:
+        return ''
+    
 if __name__ == "__main__":
     app.run_server(debug=True)
