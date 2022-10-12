@@ -445,7 +445,142 @@ def render_page_content(pathname):
                 html.H1('Define Houshold Power Consumption',
                         style={'textAlign':'center','background':'darkcyan', 'color':'white'}),
 
-                ]
+                html.Hr(), 
+
+                html.H1('Using monthly statements from your power company, enter your total',
+                        style = {'textAlign':'center',' background':'darkcyan', 'color':'white'}),
+
+                html.Br(),
+
+                html.H1('household power consumption over the last year in kilowatts (kW).',
+                        style = {'textAlign':'center',' background':'darkcyan', 'color':'white'}),
+
+                html.Hr(),
+                # Input box for last 12 months of conumption:
+                dbc.Row(
+                    [
+                    dbc.Col(
+                        [
+                        dbc.Label("Enter January Consumption in kW (numerical only)"),
+
+                        dbc.Input(
+                            id = 'January-Consumption', 
+                            type = 'number',
+                            value = 0, 
+                            placeholder = 'Enter January Consumption in kW (numerical only)', 
+                            size = '100'
+                            ),
+
+                        dbc.Label("Enter February Consumption in kW (numerical only)"),
+
+                        dbc.Input(
+                            id = 'February-Consumption', 
+                            type = 'number', 
+                            value = 0, 
+                            placeholder = 'Enter January Consumption in kW (numerical only)', 
+                            size = '100'
+                            ),
+                        dbc.Input(
+                            id = 'March-Consumption', 
+                            type = 'number', 
+                            value = 0, 
+                            placeholder = 'Enter January Consumption in kW (numerical only)', 
+                            size = '100'
+                            ),
+                        dbc.Input(
+                            id = 'April-Consumption', 
+                            type = 'number', 
+                            value = 0, 
+                            placeholder = 'Enter January Consumption in kW (numerical only)', 
+                            size = '100'
+                            ),
+                        dbc.Input(
+                            id = 'May-Consumption', 
+                            type = 'number', 
+                            value = 0, 
+                            placeholder = 'Enter January Consumption in kW (numerical only)', 
+                            size = '100'
+                            ),
+                        dbc.Input(
+                            id = 'June-Consumption', 
+                            type = 'number', 
+                            value = 0, 
+                            placeholder = 'Enter January Consumption in kW (numerical only)',  
+                            size = '100'
+                            )
+                        ]
+                   ),
+
+                    dbc.Col(
+                        [
+                        dbc.Input(
+                            id = 'July-Consumption', 
+                            type = 'number', 
+                            value = 0, 
+                            placeholder = 'July',  
+                            size = '100'
+                            ),
+                        dbc.Input(
+                            id = 'August-Consumption', 
+                            type = 'number', 
+                            value = 0, 
+                            placeholder = 'Enter January Consumption in kW (numerical only)',  
+                            size = '100'
+                            ),
+                        dbc.Input(
+                            id = 'September-Consumption', 
+                            type = 'number', 
+                            value = 0, 
+                            placeholder = 'Enter January Consumption in kW (numerical only)',  
+                            size = '100'
+                            ),
+                        dbc.Input(
+                            id = 'October-Consumption', 
+                            type = 'number', 
+                            value = 0, 
+                            placeholder = 'Enter January Consumption in kW (numerical only)', 
+                            size = '100'
+                            ),
+                        dbc.Input(
+                            id = 'November-Consumption', 
+                            type = 'number', 
+                            value = 0, 
+                            placeholder = 'Enter January Consumption in kW (numerical only)',  
+                            size = '100'
+                            ),
+                        dbc.Input(
+                            id = 'December-Consumption', 
+                            type = 'number', 
+                            value = 0, 
+                            placeholder = 'Enter January Consumption in kW (numerical only)',  
+                            size = '100'
+                            ),
+                        ]
+                    ),
+                    ]
+                ),
+
+                dbc.Row(
+                    [
+                dbc.Col(
+                # Submit Button to click after entering in user's monthly load usage
+                    dbc.Button(
+                        'Submit Load.', 
+                        id = 'submit-load', 
+                        n_clicks = 0
+                            ),
+                    ),
+                
+                dbc.Col(
+                    # Text Area to display total annual load in kW
+                    html.Div(
+                        id = 'total-annual-load', 
+                        children = 'Total Annual Load'
+                        )
+                    ),
+                    ]
+                )
+        ]
     #################### End of Page 2 ################################
 
     ##################################################################################################
@@ -841,10 +976,11 @@ def display_nrel_df(nrel_data):
 
 @app.callback(
     Output('irradiance-timeplot', 'children'),
-    [Input('nrel_table_div', 'children')]
+    [Input('nrel-data', 'data')]
     )        
 def irradiance_plotter(df):
     try:
+        solar_df = pd.DataFrame(eval(df[0]))
         fig_ghi = px.line(solar_df, x = "Date", y = "GHI")
         fig_dhi = px.line(solar_df, x = "Date", y = "DHI")
         fig_dni = px.line(solar_df, x = "Date", y = "DNI")
@@ -923,6 +1059,43 @@ def print_coords(coords, area, nrel_data):
         return f'Your estimated Annual Power Yield is {round(annual_power_yield/ 1000, 2)} kWh'
     except:
         return ''
+
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+#@ PAGE 3 Load. Callback Functions                      @
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+@app.callback(
+    # updates the output of the 
+    Output('total-annual-load', 'children'),
     
+    Input('submit-load', 'n_clicks'),
+    Input('January-Consumption', 'value'),
+    Input('February-Consumption', 'value'),
+    Input('March-Consumption', 'value'),
+    Input('April-Consumption', 'value'),
+    Input('May-Consumption', 'value'),
+    Input('June-Consumption', 'value'),
+    Input('July-Consumption', 'value'),
+    Input('August-Consumption', 'value'),
+    Input('September-Consumption', 'value'),
+    Input('October-Consumption', 'value'),
+    Input('November-Consumption', 'value'),
+    Input('December-Consumption', 'value'),
+    
+)
+
+def total_load_Cons(n_clicks,January_Consumption,Febrary_Consumption,March_Consumption,April_Consumption,May_Consumption,June_Consumption,
+                    July_Consumption,August_Consumption,September_Consumption,October_Consumption,November_Consumption,December_Consumption):
+    if n_clicks is not None: 
+        load_sum = January_Consumption + Febrary_Consumption + March_Consumption + April_Consumption + May_Consumption + June_Consumption + July_Consumption + August_Consumption + September_Consumption + October_Consumption + November_Consumption + December_Consumption
+        print(load_sum)
+        annual_load = f'{load_sum} kW'
+
+        return [annual_load]
+
+    else :
+        annual_load = f'0 kW'
+        return [annual_load]
+
 if __name__ == "__main__":
     app.run_server(debug=True)

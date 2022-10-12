@@ -60,7 +60,7 @@ class YieldEstimation:
 
         self.nrel_data['PV_Array_Ah'] = self.nrel_data['total_module'] * self.maximum_power_point_current / 1000
 
-        P_yearly = self.rated_power * self.nrel_data['total_module'].sum() / 1e3
+        P_yearly = self.module_area * self.rated_power * self.nrel_data['total_module'].sum() / 1e3
 
         return P_yearly
 
